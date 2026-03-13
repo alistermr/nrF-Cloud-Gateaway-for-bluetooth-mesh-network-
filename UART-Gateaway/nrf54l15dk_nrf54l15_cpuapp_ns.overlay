@@ -32,8 +32,8 @@
 	pinctrl-names = "default", "sleep";
 };
 
-/ {
-	chosen {
-		nordic,uart-cmd = &uart30;
-	};
-};
+// / {
+// 	chosen {
+// 		nordic,uart-cmd = &uart30;
+// 	};
+// };

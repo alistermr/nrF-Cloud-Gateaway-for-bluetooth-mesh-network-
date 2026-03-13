@@ -37,20 +37,6 @@
 
 
 
-// ...existing code...
-// If you need to define a log backend, use the new log_backend_capture_init as the .init callback
-// Example:
-// static const struct log_backend_api log_capture_api = {
-//   .process = log_capture_process,
-//   .dropped = log_capture_dropped,
-//   .panic = log_capture_panic,
-//   .init = log_backend_capture_init,
-// };
-// LOG_BACKEND_DEFINE(log_capture_backend, log_capture_api, true, NULL);
-
-
-
-
 int main(void)
 {
     int err;

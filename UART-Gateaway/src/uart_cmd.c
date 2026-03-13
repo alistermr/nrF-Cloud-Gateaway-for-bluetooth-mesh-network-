@@ -64,11 +64,11 @@ static void cmd_executor_thread(void)
         strncpy(local_cmd, cmd_buffer, CMD_BUFFER_SIZE - 1);
         local_cmd[CMD_BUFFER_SIZE - 1] = '\0';
         memset(cmd_buffer, 0, CMD_BUFFER_SIZE);
-        printk("Executing UART command: %s\n", local_cmd);
+        //printk("Executing UART command: %s\n", local_cmd);
         if (sh) {
             shell_backend_dummy_clear_output(sh);
             int ret = shell_execute_cmd(sh, local_cmd);
-            k_sleep(K_MSEC(100));
+            //k_sleep(K_MSEC(100));
             printk("shell_execute_cmd returned: %d\n", ret);
             size_t output_size;
             const char *output = shell_backend_dummy_get_output(sh, &output_size);
