@@ -32,36 +32,6 @@
 #endif
 
 
-
-#if defined(CONFIG_BT_MESH_DFD_SRV)
-static struct bt_mesh_dfd_srv dfd_srv;
-#endif
-
-#if defined(CONFIG_BT_MESH_SAR_CFG_CLI)
-static struct bt_mesh_sar_cfg_cli sar_cfg_cli;
-#endif
-
-#if defined(CONFIG_BT_MESH_PRIV_BEACON_CLI)
-static struct bt_mesh_priv_beacon_cli priv_beacon_cli;
-#endif
-
-#if defined(CONFIG_BT_MESH_SOL_PDU_RPL_CLI)
-static struct bt_mesh_sol_pdu_rpl_cli srpl_cli;
-#endif
-
-
-#if defined(CONFIG_BT_MESH_OD_PRIV_PROXY_CLI)
-static struct bt_mesh_od_priv_proxy_cli od_priv_proxy_cli;
-#endif
-
-#if defined(CONFIG_BT_MESH_LARGE_COMP_DATA_CLI)
-struct bt_mesh_large_comp_data_cli large_comp_data_cli;
-#endif
-
-#if defined(CONFIG_BT_MESH_BRG_CFG_CLI)
-static struct bt_mesh_brg_cfg_cli brg_cfg_cli;
-#endif
-
 /* UART Command Reception */
 #define CMD_BUFFER_SIZE 512
 static char cmd_buffer[CMD_BUFFER_SIZE];
@@ -320,29 +290,6 @@ static int uart_cmd_init(void)
 	return 0;
 }
 
-/* Shell command to test UART30 transmission */
-static int cmd_uart_test(const struct shell *sh, size_t argc, char *argv[])
-{
-	if (!uart_dev || !device_is_ready(uart_dev)) {
-		shell_print(sh, "UART30 not ready");
-		return -ENODEV;
-	}
-
-	const char *msg = (argc > 1) ? argv[1] : "Test message from shell";
-	
-	shell_print(sh, "Sending to UART30: %s", msg);
-	
-	for (int i = 0; msg[i] != '\0'; i++) {
-		uart_poll_out(uart_dev, msg[i]);
-	}
-	uart_poll_out(uart_dev, '\r');
-	uart_poll_out(uart_dev, '\n');
-	
-	return 0;
-}
-
-SHELL_CMD_REGISTER(uart_test, NULL, "Send test message on UART30", cmd_uart_test);
-
 
 static void bt_ready(int err)
 {
@@ -379,16 +326,16 @@ int main(void)
 
 	printk("Initializing...\n");
 
-	/* Initialize UART command reception */
-	err = uart_cmd_init();
-	if (err) {
-		printk("UART command init failed (err %d)\n", err);
-	}
-
 	/* Initialize the Bluetooth Subsystem */
 	err = bt_enable(bt_ready);
 	if (err && err != -EALREADY) {
 		printk("Bluetooth init failed (err %d)\n", err);
+	}
+
+	/* Initialize UART command reception */
+	err = uart_cmd_init();
+	if (err) {
+		printk("UART command init failed (err %d)\n", err);
 	}
 
 	printk("Press the <Tab> button for supported commands.\n");
