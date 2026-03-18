@@ -4,6 +4,10 @@
  * Hardware flow control (RTS/CTS) disabled for simple 2-wire UART
  */
 
+ &uart20{
+	status = "okay";
+ };
+
 &pinctrl {
 	uart30_custom_default: uart30_custom_default {
 		group1 {
@@ -32,8 +36,8 @@
 	pinctrl-names = "default", "sleep";
 };
 
-// / {
-// 	chosen {
-// 		nordic,uart-cmd = &uart30;
-// 	};
-// };
+/ {
+	chosen {
+		nordic,uart-cmd = &uart20;
+	};
+};

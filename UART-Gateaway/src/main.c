@@ -5,6 +5,7 @@
  */
 
 #include <zephyr/sys/printk.h>
+#include <zephyr/console/console.h>
 #include <zephyr/kernel.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <bluetooth/mesh/models.h>

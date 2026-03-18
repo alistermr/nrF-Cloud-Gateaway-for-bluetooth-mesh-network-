@@ -10,6 +10,9 @@ static uint8_t log_capture_buffer[LOG_CAPTURE_BUF_SIZE];
 static struct ring_buf log_ringbuf;
 static bool log_capture_enabled = false;
 
+bool log_capture_has_logs(void) {
+    return ring_buf_size_get(&log_ringbuf) > 0;
+}
 
 void log_capture_init(void) {
     ring_buf_init(&log_ringbuf, LOG_CAPTURE_BUF_SIZE, log_capture_buffer);

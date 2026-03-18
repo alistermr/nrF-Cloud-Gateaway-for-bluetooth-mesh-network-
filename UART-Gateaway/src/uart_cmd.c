@@ -2,6 +2,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/console/console.h>
 #include <zephyr/shell/shell.h>
 #include <zephyr/shell/shell_dummy.h>
 #include <string.h>
@@ -55,6 +56,14 @@ static void uart_isr(const struct device *dev, void *user_data)
     }
 }
 
+// size_t mesh_filter(const char *src, size_t src_len, size_t dst_size){
+//     //check if the command starts with "mesh " and drop if not
+//     if (src_len < 5 || strncmp(src, "mesh ", 5) != 0) {
+//         return 0;
+//     }
+//     return src_len;
+// }
+
 static void cmd_executor_thread(void)
 {
     const struct shell *sh = shell_backend_dummy_get_ptr();
@@ -67,19 +76,21 @@ static void cmd_executor_thread(void)
         //printk("Executing UART command: %s\n", local_cmd);
         if (sh) {
             shell_backend_dummy_clear_output(sh);
-            int ret = shell_execute_cmd(sh, local_cmd);
-            //k_sleep(K_MSEC(100));
-            printk("shell_execute_cmd returned: %d\n", ret);
-            size_t output_size;
-            const char *output = shell_backend_dummy_get_output(sh, &output_size);
-            if (output_size > 0) {
-                uart30_send(output, output_size);
-                uart30_send("\r\n", 2);
-            } else {
-                char resp[64];
-                snprintf(resp, sizeof(resp), "ret=%d\r\n", ret);
-                uart30_send(resp, strlen(resp));
-            }
+                log_capture_init(); // Clear log buffer before execution
+                int ret = shell_execute_cmd(sh, local_cmd);
+                printk("shell_execute_cmd returned: %d\n", ret);
+                size_t output_size;
+                const char *output = shell_backend_dummy_get_output(sh, &output_size);
+                if (output_size > 0) {
+                    uart30_send(output, output_size);
+                    uart30_send("\r\n", 2);
+                } else if (ret == 0 && !log_capture_has_logs()) {
+                    uart30_send("ACK\r\n", 5);
+                } else {
+                    char resp[64];
+                    snprintf(resp, sizeof(resp), "ret=%d\r\n", ret);
+                    uart30_send(resp, strlen(resp));
+                }
         } else {
             printk("Shell backend not available\n");
             uart30_send("ERROR: Shell not available\r\n", 28);
