@@ -19,6 +19,7 @@
 //static K_SEM_DEFINE(cmd_count_sem, 0, CMD_BUFFER_SIZE);
 static const struct device *uart_dev;
 K_MSGQ_DEFINE(cmd_msgq, CMD_BUFFER_SIZE, CMD_QUEUE_LEN, 4);
+static void uart30_send(const char *data, size_t len);
 
 static const char *commands[] = {
     "init",
@@ -26,6 +27,42 @@ static const char *commands[] = {
     "provision",
     NULL
 };
+
+static void forward_mesh_uuid_from_output(const char *data, size_t len)
+{
+    static char clean_buf[512];
+    const char *tags[] = {
+        "PB-ADV UUID ",
+        "PB-GATT UUID ",
+        NULL
+    };
+
+    size_t clean_len = strip_ansi_escapes(data, len, clean_buf, sizeof(clean_buf));
+    clean_buf[clean_len] = '\0';
+
+    for (int t = 0; tags[t] != NULL; t++) {
+        const char *p = clean_buf;
+
+        while ((p = strstr(p, tags[t])) != NULL) {
+            p += strlen(tags[t]);
+
+            char uuid[33];
+            size_t uuid_len = 0;
+
+            while (*p && isxdigit((unsigned char)*p) && uuid_len < 32) {
+                uuid[uuid_len++] = *p++;
+            }
+
+            if (uuid_len == 32) {
+                uuid[32] = '\0';
+                uart30_send("UUID:", 5);
+                uart30_send(uuid, 32);
+                uart30_send("\r\n", 2);
+            }
+        }
+    }
+}
+
 
 static bool enqueue_command(const char *cmd)
 {
@@ -190,6 +227,8 @@ static void cmd_executor_thread(void)
             size_t output_size;
             const char *output = shell_backend_dummy_get_output(sh, &output_size);
             if (output_size > 0) {
+                //used for forwarding the mesh UUIDs from the shell output to the UART
+                forward_mesh_uuid_from_output(output, output_size);
                 uart30_send(output, output_size);
                 uart30_send("\r\n", 2);
             } else {
