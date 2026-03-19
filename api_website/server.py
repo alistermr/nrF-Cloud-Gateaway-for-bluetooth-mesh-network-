@@ -3,7 +3,7 @@ from flask_cors import CORS
 import requests
 import json
 
-app = Flask(__name__, static_folder=".", static_url_path="")
+app = Flask(__name__, static_folder="static", static_url_path="/static")
 CORS(app)
 
 # NRF Cloud API configuration
