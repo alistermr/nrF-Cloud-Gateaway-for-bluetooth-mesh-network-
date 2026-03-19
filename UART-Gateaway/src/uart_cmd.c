@@ -1,33 +1,48 @@
 #include "uart_cmd.h"
+//#include <_mingw_stat64.h>
+#include <stdbool.h>
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/sys/printk.h>
-#include <zephyr/console/console.h>
 #include <zephyr/shell/shell.h>
 #include <zephyr/shell/shell_dummy.h>
 #include <string.h>
+#include <stdio.h>
 #include "log_capture.h"
 
 
 #define CMD_BUFFER_SIZE 512
-static char cmd_buffer[CMD_BUFFER_SIZE];
-static int cmd_buffer_pos = 0;
-static K_SEM_DEFINE(cmd_sem, 0, 1);
+#define CMD_QUEUE_LEN   32
+//static char *cmd_buffer[CMD_BUFFER_SIZE];
+//static int *cmd_buffer_pos = 0;
+//static K_SEM_DEFINE(cmd_sem, 0, 1);
+//static K_SEM_DEFINE(cmd_count_sem, 0, CMD_BUFFER_SIZE);
 static const struct device *uart_dev;
+K_MSGQ_DEFINE(cmd_msgq, CMD_BUFFER_SIZE, CMD_QUEUE_LEN, 4);
 
-static void uart30_send(const char *data, size_t len)
+static const char *commands[] = {
+    "init",
+    "scan",
+    "provision",
+    NULL
+};
+
+static bool enqueue_command(const char *cmd)
 {
-    if (!uart_dev || !device_is_ready(uart_dev)) {
-        return;
+    if (!cmd || cmd[0] == '\0') {
+        return false;
     }
-    /* Use a static buffer for stripped output */
-	static char clean_buf[512];
-	size_t clean_len = strip_ansi_escapes(data, len, clean_buf, sizeof(clean_buf));
 
-    for (size_t i = 0; i < clean_len; i++) {
-        uart_poll_out(uart_dev, clean_buf[i]);
+    char tmp[CMD_BUFFER_SIZE];
+    snprintf(tmp, sizeof(tmp), "%s", cmd);
+
+    if (k_msgq_put(&cmd_msgq, tmp, K_NO_WAIT) != 0) {
+        printk("Command queue full, dropping: %s\n", tmp);
+        return false;
     }
+    return true;
 }
+static void predefined_commands(const char *command);
 
 size_t strip_ansi_escapes(const char *src, size_t src_len, char *dst, size_t dst_size) {
     size_t dst_pos = 0;
@@ -54,8 +69,28 @@ size_t strip_ansi_escapes(const char *src, size_t src_len, char *dst, size_t dst
     return dst_pos;
 }
 
+static void uart30_send(const char *data, size_t len)
+{
+    if (!uart_dev || !device_is_ready(uart_dev)) {
+        return;
+    }
+
+    /* Use a static buffer for stripped output */
+	static char clean_buf[512];
+	size_t clean_len = strip_ansi_escapes(data, len, clean_buf, sizeof(clean_buf));
+
+
+    for (size_t i = 0; i < clean_len; i++) {
+        uart_poll_out(uart_dev, clean_buf[i]);
+    }
+}
+
 static void uart_isr(const struct device *dev, void *user_data)
 {
+    ARG_UNUSED(user_data);
+
+    static char uart_buffer[CMD_BUFFER_SIZE];
+    static size_t uart_buffer_pos = 0;
     uint8_t c;
     if (!uart_irq_update(dev)) {
         return;
@@ -65,53 +100,103 @@ static void uart_isr(const struct device *dev, void *user_data)
     }
     while (uart_fifo_read(dev, &c, 1) == 1) {
         if (c == '\r' || c == '\n') {
-            if (cmd_buffer_pos > 0) {
-                cmd_buffer[cmd_buffer_pos] = '\0';
-                cmd_buffer_pos = 0;
-                k_sem_give(&cmd_sem);
+            if (uart_buffer_pos > 0) {
+                //check if the command is in the list of allowed commands
+                bool found = false;
+                for (int i = 0; commands[i] != NULL; i++) {
+                    if (strncmp(uart_buffer, commands[i], strlen(commands[i])) == 0) {
+                        predefined_commands(uart_buffer);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    enqueue_command(uart_buffer);
+                }
+                uart_buffer_pos = 0;
+                memset(uart_buffer, 0, sizeof(uart_buffer));
             }
-        } else if (cmd_buffer_pos < CMD_BUFFER_SIZE - 1) {
-            cmd_buffer[cmd_buffer_pos++] = c;
+        } else if (uart_buffer_pos < CMD_BUFFER_SIZE - 1) {
+            uart_buffer[uart_buffer_pos++] = (char)c;
         } else {
             printk("Command buffer overflow, resetting\n");
-            cmd_buffer_pos = 0;
+            uart_buffer_pos = 0;
         }
     }
 }
 
-// size_t mesh_filter(const char *src, size_t src_len, size_t dst_size){
-//     //check if the command starts with "mesh " and drop if not
-//     if (src_len < 5 || strncmp(src, "mesh ", 5) != 0) {
-//         return 0;
-//     }
-//     return src_len;
-// }
+static void predefined_commands(const char *command)
+{
+    static bool scanning = false;
+
+    if (strcmp(command, "init") == 0) {
+        printk("Initializing device...\n");
+        enqueue_command("mesh init");
+        enqueue_command("mesh cdb create");
+        enqueue_command("mesh prov local 0 0x0001");
+    } else if (strcmp(command, "scan") == 0) {
+        scanning = !scanning;
+        if (scanning) {
+            printk("Scanning for devices...\n");
+            enqueue_command("mesh prov beacon-listen on");
+        } else {
+            printk("Stopping scan...\n");
+            enqueue_command("mesh prov beacon-listen off");
+        }
+    } else if (strncmp(command, "prov", strlen("prov")) == 0) {
+        const char *uuid = command + strlen("prov");
+        while (*uuid == ' ') {
+            uuid++;
+        }
+        if (*uuid == '\0') {
+            printk("Provision requires UUID\n");
+            return;
+        }
+
+        char prov_cmd[CMD_BUFFER_SIZE];
+        snprintf(prov_cmd, sizeof(prov_cmd),
+                 "mesh prov remote-adv %s 0 0x0010 5", uuid);
+        enqueue_command(prov_cmd);
+    } else if (strcmp(command, "bind") == 0) {
+        enqueue_command("mesh target dst local");
+        enqueue_command("mesh target net 0");
+        enqueue_command("mesh models cfg appkey add 0 0");
+        enqueue_command("mesh target dst 0x0010");
+        enqueue_command("mesh models cfg appkey add 0 0");
+        enqueue_command("mesh models cfg model app-bind 0x0010 0 0x1000");
+        enqueue_command("mesh models cfg model app-bind 0x0011 0 0x1000");
+        enqueue_command("mesh models cfg model app-bind 0x0012 0 0x1000");
+        enqueue_command("mesh models cfg model app-bind 0x0013 0 0x1000");
+    } else {
+        printk("Unknown command: %s\n", command);
+    }
+}
 
 static void cmd_executor_thread(void)
 {
     const struct shell *sh = shell_backend_dummy_get_ptr();
     char local_cmd[CMD_BUFFER_SIZE];
     while (1) {
-        k_sem_take(&cmd_sem, K_FOREVER);
-        strncpy(local_cmd, cmd_buffer, CMD_BUFFER_SIZE - 1);
-        local_cmd[CMD_BUFFER_SIZE - 1] = '\0';
-        memset(cmd_buffer, 0, CMD_BUFFER_SIZE);
+        k_msgq_get(&cmd_msgq, local_cmd, K_FOREVER);
+        printk("Running command: %s\n", local_cmd);
+
+        //memset(cmd_buffer, 0, sizeof(cmd_buffer));
         //printk("Executing UART command: %s\n", local_cmd);
         if (sh) {
             shell_backend_dummy_clear_output(sh);
-                log_capture_init(); // Clear log buffer before execution
-                int ret = shell_execute_cmd(sh, local_cmd);
-                printk("shell_execute_cmd returned: %d\n", ret);
-                size_t output_size;
-                const char *output = shell_backend_dummy_get_output(sh, &output_size);
-                if (output_size > 0) {
-                    uart30_send(output, output_size);
-                    uart30_send("\r\n", 2);
-                } else {
-                    char resp[64];
-                    snprintf(resp, sizeof(resp), "ret=%d\r\n", ret);
-                    uart30_send(resp, strlen(resp));
-                }
+            int ret = shell_execute_cmd(sh, local_cmd);
+            //k_sleep(K_MSEC(100));
+            printk("shell_execute_cmd returned: %d\n", ret);
+            size_t output_size;
+            const char *output = shell_backend_dummy_get_output(sh, &output_size);
+            if (output_size > 0) {
+                uart30_send(output, output_size);
+                uart30_send("\r\n", 2);
+            } else {
+                char resp[64];
+                snprintf(resp, sizeof(resp), "ret=%d\r\n", ret);
+                uart30_send(resp, strlen(resp));
+            }
         } else {
             printk("Shell backend not available\n");
             uart30_send("ERROR: Shell not available\r\n", 28);
