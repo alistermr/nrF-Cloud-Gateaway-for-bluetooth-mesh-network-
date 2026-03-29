@@ -16,7 +16,7 @@
 #include <zephyr/bluetooth/mesh/shell.h>
 
 
-#define CMD_BUFFER_SIZE 512
+#define CMD_BUFFER_SIZE 128
 #define CMD_QUEUE_LEN   32
 #define RX_CMD_QUEUE_LEN 32
 //static char *cmd_buffer[CMD_BUFFER_SIZE];
@@ -26,8 +26,6 @@
 static const struct device *uart_dev;
 K_MSGQ_DEFINE(cmd_msgq, CMD_BUFFER_SIZE, CMD_QUEUE_LEN, 4);
 K_MSGQ_DEFINE(rx_cmd_msgq, CMD_BUFFER_SIZE, RX_CMD_QUEUE_LEN, 4);
-
-static void uart30_send(const char *data, size_t len);
 
 static const char *commands[] = {
     "init", // format: init
@@ -57,7 +55,7 @@ static int prov_count = 0x0010;
 
 
 static void run_command(const char *command);
-static void uart30_send(const char *data, size_t len);
+static void uart30_send(const char *data, const char *subject);
 static bool enqueue_command(const char *cmd); 
 
 static void uuid_to_str(const uint8_t uuid[16], char *out, size_t out_len)
@@ -97,8 +95,8 @@ static void uart_unprov_beacon_cb(const uint8_t uuid[16],
         uuids_cur_scan[num_uuids_cur_scan++] = strdup(uuid_str);
     }
 
-    snprintf(line, sizeof(line), "uuid=%s\r\n", uuid_str);
-    uart30_send(line, strlen(line));
+    snprintf(line, sizeof(line), "%s", uuid_str);
+    uart30_send(line, "UUID");
 }
 
 static void uart_node_added_cb(uint16_t net_idx,
@@ -106,9 +104,6 @@ static void uart_node_added_cb(uint16_t net_idx,
                                uint16_t addr,
                                uint8_t num_elem)
 {
-
-
-
         char cmd[64];
         snprintf(cmd, sizeof(cmd), "mesh target dst 0x%04x", addr);
         enqueue_command(cmd);
@@ -123,8 +118,8 @@ static void uart_node_added_cb(uint16_t net_idx,
         }
 
         char response[128];
-        snprintf(response, sizeof(response), "Binding complete on app_idx %u and net_idx %u on addresses 0x%04x-0x%04x\r\n", cur_app_idx, net_idx, addr, addr+num_elem-1);
-        uart30_send(response, strlen(response));
+        snprintf(response, sizeof(response), "Binding complete on app_idx %u and net_idx %u on addresses 0x%04x-0x%04x", cur_app_idx, net_idx, addr, addr+num_elem-1);
+        uart30_send(response, "Provisioning");
 }
 
 static bool enqueue_command(const char *cmd)
@@ -138,8 +133,8 @@ static bool enqueue_command(const char *cmd)
 
     if (k_msgq_put(&cmd_msgq, tmp, K_NO_WAIT) != 0) {
         printk("Command queue full, dropping: %s\n", tmp);
-        const char *response = "ERROR: Command queue full\r\n";
-        uart30_send(response, strlen(response));
+        const char *response = "ERROR: Command queue full";
+        uart30_send(response, "Error");
         return false;
     }
     return true;
@@ -170,19 +165,22 @@ size_t strip_ansi_escapes(const char *src, size_t src_len, char *dst, size_t dst
     return dst_pos;
 }
 
-static void uart30_send(const char *data, size_t len)
+static void uart30_send(const char *data, const char *subject)
 {
     if (!uart_dev || !device_is_ready(uart_dev)) {
         return;
     }
 
     /* Use a static buffer for stripped output */
-	static char clean_buf[1024];
-	size_t clean_len = strip_ansi_escapes(data, len, clean_buf, sizeof(clean_buf));
 
-
-    for (size_t i = 0; i < clean_len; i++) {
-        uart_poll_out(uart_dev, clean_buf[i]);
+    const char *messagePrefix = "{\"message\": \"";
+    const char *subjectPrefix = "\", \"subject\": \"";
+    const char *suffix = "\"}\n";
+    char json_buf[1024];
+    snprintf(json_buf, sizeof(json_buf), "%s%s%s%s%s", messagePrefix, data, subjectPrefix, subject, suffix);
+    size_t json_len = strip_ansi_escapes(json_buf, strlen(json_buf), json_buf, sizeof(json_buf));
+    for (size_t i = 0; i < json_len; i++) {
+        uart_poll_out(uart_dev, json_buf[i]);
     }
 }
 
@@ -271,21 +269,21 @@ static void run_command(const char *command)
         net_key_count++;
         enqueue_command("mesh prov local 0 0x0001");
         bt_mesh_shell_prov.node_added = uart_node_added_cb;
-        const char *response = "init done\r\n";
-        uart30_send(response, strlen(response));
+        const char *response = "initialization complete";
+        uart30_send(response, "response");
     } else if (strcmp(command, "scan") == 0) {
         scanning = !scanning;
         if (scanning) {
             printk("Scanning for devices...\n");
-            const char *response = "scan started\r\n";
-            uart30_send(response, strlen(response));
+            const char *response = "scan started";
+            uart30_send(response, "response");
             //enqueue_command("mesh prov beacon-listen on");
             num_uuids_cur_scan = 0; // Reset UUID list for new scan
             bt_mesh_shell_prov.unprovisioned_beacon = uart_unprov_beacon_cb;
         } else {
             printk("Stopping scan...\n");
-            const char *response = "scan stopped\r\n";
-            uart30_send(response, strlen(response));
+            const char *response = "scan stopped";
+            uart30_send(response, "response");
             //enqueue_command("mesh prov beacon-listen off");
             bt_mesh_shell_prov.unprovisioned_beacon = NULL;
         }
@@ -296,8 +294,8 @@ static void run_command(const char *command)
         if (sscanf(command, "prov %s %u %u", uuid, &net_idx, &app_idx) != 3) {
             printk("wrong formating prov, Usage: prov <uuid> <net_idx> <app_idx>\n");
             char response[128];
-            snprintf(response, sizeof(response), "wrong formating prov, Usage: prov <uuid> <net_idx> <app_idx>\r\n");
-            uart30_send(response, strlen(response));
+            snprintf(response, sizeof(response), "wrong formating prov, Usage: prov <uuid> <net_idx> <app_idx>");
+            uart30_send(response, "Error");
             return;
         }
 
@@ -315,7 +313,7 @@ static void run_command(const char *command)
             }
         }
         if (!app_idx_exists) {
-            printk("AppKey index %u does not exist under NetKey index %u, creating new\n", app_idx, net_idx);
+            printk("AppKey index %u does not exist under NetKey index %u, creating new", app_idx, net_idx);
             add_appkey_to_net(net_idx, app_idx);
         }
         cur_app_idx = app_idx;
@@ -325,15 +323,15 @@ static void run_command(const char *command)
         enqueue_command(cmd);
 
         char response[128];
-        snprintf(response, sizeof(response), "Provisioning started\r\n");
-        uart30_send(response, strlen(response));
+        snprintf(response, sizeof(response), "Provisioning started");
+        uart30_send(response, "response");
     } else if (strncmp(command, "light", strlen("light")) == 0) {
         unsigned int net_idx = 0U, app_idx = 0U, dst_addr = 0U, on_off = 0U;
         if (sscanf(command, "light %u %u %u %u", &net_idx, &app_idx, &dst_addr, &on_off) != 4) {
             printk("wrong formating light command, Usage: light <net_idx> <app_idx> <dst_addr> <on/off>\n");
             char response[128];
-            snprintf(response, sizeof(response), "wrong formating light command, Usage: light <net_idx> <app_idx> <dst_addr> <on/off>\r\n");
-            uart30_send(response, strlen(response));
+            snprintf(response, sizeof(response), "wrong formating light command, Usage: light <net_idx> <app_idx> <dst_addr> <on/off>");
+            uart30_send(response, "Error");
             return;
         }
         char cmd[100];
@@ -347,13 +345,13 @@ static void run_command(const char *command)
         enqueue_command(cmd);
 
         char response[128];
-        snprintf(response, sizeof(response), "Light command sent to 0x%04x\r\n", dst_addr);
-        uart30_send(response, strlen(response));
+        snprintf(response, sizeof(response), "Light command sent to 0x%04x", dst_addr);
+        uart30_send(response, "response");
     
     }else {
         enqueue_command(command);
-        const char *response = "Command ran\r\n";
-        uart30_send(response, strlen(response));
+        const char *response = "Command ran";
+        uart30_send(response, "response");
     }
 }
 
@@ -388,16 +386,12 @@ static void cmd_executor_thread(void)
             const char *output = shell_backend_dummy_get_output(sh, &output_size);
             //printk("Command output: %.*s", (int)output_size, output);
             if (output_size > 0) {
-                //uart30_send(output, output_size);
-                //uart30_send("\r\n", 2);
             } else {
                 char resp[64];
-                snprintf(resp, sizeof(resp), "ret=%d\r\n", ret);
-                //uart30_send(resp, strlen(resp));
+                snprintf(resp, sizeof(resp), "ret=%d", ret);
             }
         } else {
             printk("Shell backend not available\n");
-            //uart30_send("ERROR: Shell not available\r\n", 28);
         }
     }
 }

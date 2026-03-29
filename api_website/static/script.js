@@ -1,7 +1,11 @@
 const API = "http://localhost:5000"; // Flask backend URL
+//const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/50344654-3037-4bdd-8004-2314d6fc32b9/c2d";
+const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/50344654-3037-4bdd-8004-2314d6fc32b9/d2c"
+
 
 let addressCache = [0]; // index 0 = gateway placeholder, provisioned nodes start at index 1
 let nonProvCache = [];
+let provCache = [];
 let prov_beacon = false;
 let selectedDeviceIdx = null;
 let scanPollTimer = null;
@@ -99,8 +103,7 @@ async function listMessages() {
     document.getElementById("output").innerHTML =
         '<span class="spinner"></span> Loading message history…';
 
-    try {
-        const res = await fetch(API + "/api/get_messages");
+    try {const res = await fetch(API + "/api/get_messages?topic=" + encodeURIComponent(topic) + "&pageLimit=5");
         const data = await res.json();
 
         const items = data.response?.items ?? [];
@@ -114,9 +117,12 @@ async function listMessages() {
         if (items.length === 0) {
             setOutput("No messages found.");
         } else {
-            const formatted = items.map(m =>
-                `[${m.receivedAt ?? ""}] ${m.appId ?? ""}: ${m.data ?? JSON.stringify(m)}`
-            ).join("\n");
+            console.log("Fetched messages:", items);
+            const formatted = items.map(m => {
+                const time = new Date(m.receivedAt).toLocaleString();
+                const dataStr = String("subject: " + m.message.data.subject + ", message: " + m.message.data.message);
+                return `[${time}] ${dataStr}`;
+            }).join("\n");
             setOutput(formatted);
         }
     } catch (err) {
@@ -126,41 +132,29 @@ async function listMessages() {
 }
 
 async function getUnprovisionedDevices() {
-    const hardcodedUUIDs = [
-        "271f1594ac0b426098e0ea6b53f41d9f",
-        "e6f3c64022f543b3990c39bfdd0a6c4c",
-        "0622b315eab04703b9dd4cea154fc8fc"
-    ];
-
-    try {
-        const res = await fetch(API + "/api/nonprov");
-        const data = await res.json();
-
-        if (!res.ok) {
-            setStatus("error", `${res.status} Error`);
-            return;
+        try {
+            const res = await fetch(API + "/api/get_messages?topic=" + encodeURIComponent(topic) + "&pageLimit=1");
+            const data = await res.json();
+            for (const item of data.response.items) {
+                if (item.message.data.subject === "UUID" && !(nonProvCache.includes(item.message.data.message) || provCache.includes(item.message.data.message))) {
+                    nonProvCache.push(item.message.data.message);
+                }
+            }
+            if (res.ok) {
+                renderDeviceList();
+            } else {
+                console.error("Failed to fetch unprovisioned devices:", res.status, data);
+            }
+        } catch (err) {
+            console.error("Network error while fetching unprovisioned devices:", err);
         }
-
-        const fetched = Array.isArray(data.uuids) ? data.uuids : [];
-        const merged = [...new Set([...hardcodedUUIDs, ...fetched])];
-        nonProvCache = merged;
-        renderDeviceList();
-    } catch (err) {
-        nonProvCache = hardcodedUUIDs;
-        renderDeviceList();
-    }
 }
 
-async function clearUnprovisionedDevices() {
-    try {
-        await fetch(API + "/api/nonprov/clear", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" }
-        });
-    } catch (err) {
-        console.error("Failed to clear UUID cache:", err);
+setInterval(() => {
+    if (prov_beacon) {
+        getUnprovisionedDevices();
     }
-}
+}, 1000);
 
 async function mesh_init() {
     setOutput("");
@@ -265,26 +259,11 @@ async function toggleScan() {
         setStatus("pending", "Scanning…");
         document.getElementById("output").innerHTML =
             '<span class="spinner"></span> Scanning for unprovisioned devices…';
-
-        await clearUnprovisionedDevices();
-        await delay(500);
-        await getUnprovisionedDevices();
-
-        scanPollTimer = setInterval(async () => {
-            await getUnprovisionedDevices();
-        }, 1500);
     } else {
         btn.textContent = "🔍 Scan";
         btn.classList.remove("scanning");
         setStatus("success", "Scan stopped");
-
-        if (scanPollTimer) {
-            clearInterval(scanPollTimer);
-            scanPollTimer = null;
-        }
     }
-
-    renderDeviceList();
 }
 
 async function provisionSelected() {
