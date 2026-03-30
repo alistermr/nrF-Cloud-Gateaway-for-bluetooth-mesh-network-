@@ -13,7 +13,7 @@
   <div class="card">
     <h1>ESI Cloud</h1>
     <p class="subtitle">Send a message to your board &amp; see the API response</p>
-    <button class="btn-device" id="initBtn" onclick="mesh_init()">Mesh Init</button>
+    <button class="btn-device" id="initBtn" onclick="sendMessage('init'); setStatus('pending', 'Initializing mesh');">Mesh Init</button>
 
     <!-- Provisioned devices -->
     <div class="provisioned-devices">
@@ -31,6 +31,16 @@
       </div>
       <div class="device-list" id="deviceList">
         <div class="no-devices">No unprovisioned devices found. Click Scan to start.</div>
+      </div>
+      <div class="provision-config">
+        <div class="provision-field">
+          <label for="provNetIdx">Net IDX</label>
+          <input id="provNetIdx" type="number" min="0" step="1" value="0" />
+        </div>
+        <div class="provision-field">
+          <label for="provAppIdx">App IDX</label>
+          <input id="provAppIdx" type="number" min="0" step="1" value="0" />
+        </div>
       </div>
       <div class="btn-row">
         <button class="btn-provision" id="provisionBtn" disabled onclick="provisionSelected()">Provision Selected</button>
@@ -50,8 +60,6 @@
 
     <div class="btn-row">
       <button class="btn-send" id="sendBtn" onclick="sendMessagebtn()">Send Message</button>
-      <button class="btn-device" onclick="getDeviceState()">Device State</button>
-      <button class="btn-device" onclick="listMessages()">📨 Messages</button>
     </div>
 
 

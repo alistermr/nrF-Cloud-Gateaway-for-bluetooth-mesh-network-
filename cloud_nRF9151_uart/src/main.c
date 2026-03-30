@@ -3,7 +3,6 @@
  *
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
-
 #include <zephyr/kernel.h>
 #include <modem/nrf_modem_lib.h>
 #include <nrf_modem_at.h>
@@ -105,16 +104,22 @@ static int send_uart_rx_to_cloud(const char *uart_line)
 		return -EAGAIN;
 	}
 
+	char appid[16];
+	char *message_str;
+	sscanf(uart_line, "%15s", appid);
+	message_str = uart_line + strlen(appid) + 1;
+
+
 	NRF_CLOUD_OBJ_JSON_DEFINE(msg_obj);
 
-	err = create_timestamped_device_message(&msg_obj, UART_RX_CLOUD_APPID,
+	err = create_timestamped_device_message(&msg_obj, appid,
 											NRF_CLOUD_JSON_MSG_TYPE_VAL_DATA);
 	if (err)
 	{
 		return err;
 	}
 
-	err = nrf_cloud_obj_str_add(&msg_obj, NRF_CLOUD_JSON_DATA_KEY, uart_line, false);
+	err = nrf_cloud_obj_str_add(&msg_obj, NRF_CLOUD_JSON_DATA_KEY, message_str, false);
 	if (err)
 	{
 		nrf_cloud_obj_free(&msg_obj);

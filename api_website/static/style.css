@@ -44,7 +44,7 @@ body {
     border-radius: 14px;
     padding: 2rem 2.25rem 2.25rem;
     width: 100%;
-    max-width: 560px;
+    max-width: 800px;
     box-shadow:
     0 1px 2px rgba(0,0,0,.3),
     0 8px 24px rgba(0,0,0,.25),
@@ -182,7 +182,7 @@ button:active { transform: scale(.97); }
 
 #output {
     width: 100%;
-    min-height: 140px;
+    height: 140px;
     padding: .7rem .85rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -193,7 +193,6 @@ button:active { transform: scale(.97); }
     white-space: pre-wrap;
     word-break: break-all;
     overflow-y: auto;
-    max-height: 280px;
     line-height: 1.55;
 }
 
@@ -343,6 +342,34 @@ button:active { transform: scale(.97); }
     gap: .3rem;
     max-height: 200px;
     overflow-y: auto;
+}
+
+.provision-config {
+    margin-top: .65rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .5rem;
+}
+
+.provision-field label {
+    margin-bottom: .25rem;
+}
+
+.provision-field input {
+    width: 100%;
+    padding: .45rem .6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: .78rem;
+}
+
+.provision-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.15);
 }
 
 .device-item {

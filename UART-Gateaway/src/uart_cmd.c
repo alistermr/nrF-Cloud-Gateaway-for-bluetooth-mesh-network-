@@ -171,13 +171,9 @@ static void uart30_send(const char *data, const char *subject)
         return;
     }
 
-    /* Use a static buffer for stripped output */
 
-    const char *messagePrefix = "{\"message\": \"";
-    const char *subjectPrefix = "\", \"subject\": \"";
-    const char *suffix = "\"}\n";
     char json_buf[1024];
-    snprintf(json_buf, sizeof(json_buf), "%s%s%s%s%s", messagePrefix, data, subjectPrefix, subject, suffix);
+    snprintf(json_buf, sizeof(json_buf), "%s %s\n",subject, data);
     size_t json_len = strip_ansi_escapes(json_buf, strlen(json_buf), json_buf, sizeof(json_buf));
     for (size_t i = 0; i < json_len; i++) {
         uart_poll_out(uart_dev, json_buf[i]);
@@ -270,7 +266,7 @@ static void run_command(const char *command)
         enqueue_command("mesh prov local 0 0x0001");
         bt_mesh_shell_prov.node_added = uart_node_added_cb;
         const char *response = "initialization complete";
-        uart30_send(response, "response");
+        uart30_send(response, "init_complete");
     } else if (strcmp(command, "scan") == 0) {
         scanning = !scanning;
         if (scanning) {
@@ -290,7 +286,6 @@ static void run_command(const char *command)
     } else if (strncmp(command, "prov", strlen("prov")) == 0) {
         unsigned int net_idx = 0U, app_idx = 0U;
         char uuid[33];
-                                            //%16s 
         if (sscanf(command, "prov %s %u %u", uuid, &net_idx, &app_idx) != 3) {
             printk("wrong formating prov, Usage: prov <uuid> <net_idx> <app_idx>\n");
             char response[128];
@@ -298,7 +293,6 @@ static void run_command(const char *command)
             uart30_send(response, "Error");
             return;
         }
-
         //check if net_idx and app_idx exist
         bool app_idx_exists = false;
         for (int i = 0; i < net_key_count; i++) {
@@ -384,7 +378,7 @@ static void cmd_executor_thread(void)
             printk("shell_execute_cmd returned: %d\n", ret);
             size_t output_size;
             const char *output = shell_backend_dummy_get_output(sh, &output_size);
-            //printk("Command output: %.*s", (int)output_size, output);
+            printk("Command output: %.*s", (int)output_size, output);
             if (output_size > 0) {
             } else {
                 char resp[64];

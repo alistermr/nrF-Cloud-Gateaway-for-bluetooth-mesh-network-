@@ -74,114 +74,101 @@ async function sendMessagebtn() {
     btn.disabled = false;
 }
 
-async function getDeviceState() {
-    setOutput("");
-    setStatus("pending", "Fetching…");
-    document.getElementById("output").innerHTML =
-        '<span class="spinner"></span> Fetching device state…';
-
-    try {
-        const res = await fetch(API + "/api/device");
+async function getMessages() {
+let last_message_time = new Date().toISOString();
+let messageCache = "";
+while (true) {
+    try {const res = await fetch(API + "/api/get_messages?topic=" + encodeURIComponent(topic) + "&pageLimit=5" + "&start=" + last_message_time);
         const data = await res.json();
-
-        if (res.ok) {
-            setStatus("success", `${res.status} OK`);
-        } else {
-            setStatus("error", `${res.status} Error`);
-        }
-
-        setOutput(data);
-    } catch (err) {
-        setStatus("error", "Network Error");
-        setOutput(err.message);
-    }
-}
-
-async function listMessages() {
-    setOutput("");
-    setStatus("pending", "Fetching…");
-    document.getElementById("output").innerHTML =
-        '<span class="spinner"></span> Loading message history…';
-
-    try {const res = await fetch(API + "/api/get_messages?topic=" + encodeURIComponent(topic) + "&pageLimit=5");
-        const data = await res.json();
-
         const items = data.response?.items ?? [];
-
         if (res.ok) {
-            setStatus("success", `${items.length} messages`);
+            //setStatus("success", `${items.length} messages`);
         } else {
             setStatus("error", `${res.status} Error`);
         }
 
         if (items.length === 0) {
-            setOutput("No messages found.");
+            //console.log("No messages found.");
         } else {
-            console.log("Fetched messages:", items);
-            const formatted = items.map(m => {
-                const time = new Date(m.receivedAt).toLocaleString();
-                const dataStr = String("subject: " + m.message.data.subject + ", message: " + m.message.data.message);
-                return `[${time}] ${dataStr}`;
-            }).join("\n");
-            setOutput(formatted);
-        }
-    } catch (err) {
-        setStatus("error", "Network Error");
-        setOutput(err.message);
-    }
-}
-
-async function getUnprovisionedDevices() {
-        try {
-            const res = await fetch(API + "/api/get_messages?topic=" + encodeURIComponent(topic) + "&pageLimit=1");
-            const data = await res.json();
-            for (const item of data.response.items) {
-                if (item.message.data.subject === "UUID" && !(nonProvCache.includes(item.message.data.message) || provCache.includes(item.message.data.message))) {
-                    nonProvCache.push(item.message.data.message);
+            for (const item of items) {
+                console.log("Processing message with appId:", item.message.appId);
+                if (item.message.appId === "UUID") {
+                    getUnprovisionedDevice(item.message.data);
+                }
+                if (item.message.appId === "init_complete") {
+                    document.getElementById("initBtn").style.display = "none";
+                    setStatus("success", "Mesh Initialized");
+                }
+                if (item.message.appId === "Provisioning") {
+                    getProvisionedDevice(item.message.data);
                 }
             }
-            if (res.ok) {
-                renderDeviceList();
-            } else {
-                console.error("Failed to fetch unprovisioned devices:", res.status, data);
-            }
-        } catch (err) {
-            console.error("Network error while fetching unprovisioned devices:", err);
+            console.log("Fetched messages:", items);
+            last_message_time = items[0].receivedAt;
+            // increase last_message_time by 1ms to avoid fetching the same message again
+            last_message_time = new Date(new Date(last_message_time).getTime() + 1).toISOString();
+            console.log("Latest message received at:", last_message_time);
+            const formatted = items.map(m => {
+                const time = new Date(m.receivedAt).toLocaleString();
+                const dataStr = String("AppId: " + m.message.appId + ", message: " + m.message.data);
+                return `[${time}] ${dataStr}`;
+            }).join("\n");
+            messageCache = formatted + "\n" + messageCache;
         }
-}
-
-setInterval(() => {
-    if (prov_beacon) {
-        getUnprovisionedDevices();
+        setOutput(messageCache);
+    } catch (err) {
+        setStatus("error");
+        setOutput(err.message);
     }
-}, 1000);
-
-async function mesh_init() {
-    setOutput("");
-    setStatus("pending", "Initializing mesh");
-    document.getElementById("output").innerHTML =
-        '<span class="spinner"></span> Initializing mesh network…';
-
-    document.getElementById("initBtn").style.display = "none";
-
-    await sendMessage("init");
-
-    setStatus("success", "Mesh Initialized");
-    document.getElementById("output").innerHTML = "Mesh network initialized.";
+    await delay(1000);
 }
+}
+getMessages();
 
-async function toggle_prov_beacon() {
-    await sendMessage("scan");
-    if (prov_beacon) {
-        prov_beacon = false;
-    } else {
-        prov_beacon = true;
+async function getUnprovisionedDevice(uuid) {
+    if (!nonProvCache.includes(uuid) && !provCache.includes(uuid)) {
+        nonProvCache.push(uuid);
+        renderDeviceList();
     }
 }
+
+
+async function getProvisionedDevice(msg) {
+    console.log("Parsing provisioning message:");
+    const re = /Binding complete on app_idx\s+(\d+)\s+and net_idx\s+(\d+)\s+on addresses\s+0x([0-9a-fA-F]{1,4})-0x([0-9a-fA-F]{1,4})/i;
+    const m = String(msg).match(re);
+    console.log("Regex match result:", m);
+    if (!m) return null;
+    const app_idx = Number.parseInt(m[1], 10);
+    const net_idx = Number.parseInt(m[2], 10);
+    let startAddr = Number.parseInt(m[3], 16);
+    let endAddr = Number.parseInt(m[4], 16);
+    console.log(`Parsed provisioning data - app_idx: ${app_idx}, net_idx: ${net_idx}, startAddr: 0x${startAddr.toString(16)}, endAddr: 0x${endAddr.toString(16)}`);
+    console.log("Current addressCache before update:", addressCache);
+    for (let addr = startAddr; addr <= endAddr; addr++) {
+        addressCache.push([net_idx, app_idx, addr]);
+    }
+    console.log("Updated addressCache after adding new devices:", addressCache);
+
+
+    if (!addressCache.includes(startAddr)) {
+        addressCache.push(startAddr);
+    }
+    if (!provCache.includes(startAddr)) {
+        provCache.push(startAddr);
+    }
+
+    setStatus(
+        "success",
+        `binding complete on app_idx ${app_idx} and net_idx ${net_idx} on addresses 0x${startAddr.toString(16)}-0x${endAddr.toString(16)}`
+    );
+    renderProvisionedList();
+}
+
 
 function renderProvisionedList() {
     const list = document.getElementById("provisionedList");
-    const cache = addressCache.slice(1); // do not mutate addressCache
+    const cache = addressCache.slice(1);
 
     if (cache.length === 0) {
         list.innerHTML = '<div class="no-devices">No provisioned devices yet.</div>';
@@ -191,30 +178,14 @@ function renderProvisionedList() {
     list.innerHTML = "";
 
     cache.forEach((addr, i) => {
-        let elementsHtml = "";
-        for (let u = 0; u < 4; u++) {
-            const elemAddr = addr + u;
-            const elemAddrHex = "0x" + elemAddr.toString(16).padStart(4, "0");
-            elementsHtml += `
-                <div class="element-card">
-                    <div class="element-header">
-                        <span class="el-label">EL ${u}</span>
-                        <span class="el-addr">${elemAddrHex}</span>
-                    </div>
-                    <button class="btn-el-on" onclick="toggle_light(${elemAddr}, true)">ON</button>
-                    <button class="btn-el-off" onclick="toggle_light(${elemAddr}, false)">OFF</button>
-                </div>`;
-        }
-
-        const nodeCard = document.createElement("div");
-        nodeCard.className = "node-card";
-        nodeCard.innerHTML = `
-            <div class="node-header">
-                <span class="node-title">Node ${i}</span>
-                <span class="node-element-count">4 elements</span>
-            </div>
-            <div class="node-elements">${elementsHtml}</div>`;
-        list.appendChild(nodeCard);
+        const el = document.createElement("div");
+        el.className = "device-item";
+        el.innerHTML =
+            `<span><span class="device-index">#${i + 1}</span>` +
+            `<span class="device-uuid">0x${addr[2].toString(16)} (net_idx: ${addr[0]}, app_idx: ${addr[1]})</span></span>` +
+            `<button class="btn-device" onclick="toggle_light(${addr[0]}, ${addr[1]}, ${addr[2]}, true)">On</button>` +
+            `<button class="btn-device" onclick="toggle_light(${addr[0]}, ${addr[1]}, ${addr[2]}, false)">Off</button>`;
+        list.appendChild(el);
     });
 }
 
@@ -248,6 +219,33 @@ function selectDevice(idx) {
     renderDeviceList();
 }
 
+async function provisionSelected() {
+    if (selectedDeviceIdx === null) return;
+
+    const net_idx = document.getElementById("provNetIdx").value;
+    const app_idx = document.getElementById("provAppIdx").value;
+
+    const uuid = nonProvCache[selectedDeviceIdx];
+    document.getElementById("provisionBtn").disabled = true;
+    setStatus("pending", `Provisioning…`);
+    await sendMessage(`prov ${uuid} ${net_idx} ${app_idx}`);
+
+    renderProvisionedList();
+
+    nonProvCache.splice(selectedDeviceIdx, 1);
+    selectedDeviceIdx = null;
+    renderDeviceList();
+}
+
+async function toggle_prov_beacon() {
+    await sendMessage("scan");
+    if (prov_beacon) {
+        prov_beacon = false;
+    } else {
+        prov_beacon = true;
+    }
+}
+
 async function toggleScan() {
     const btn = document.getElementById("scanBtn");
 
@@ -266,36 +264,10 @@ async function toggleScan() {
     }
 }
 
-async function provisionSelected() {
-    if (selectedDeviceIdx === null) return;
-
-    const uuid = nonProvCache[selectedDeviceIdx];
-    const nextAddrNum = (addressCache.length - 1) * 4 + 0x10;
-    const toHex = (n) => "0x" + n.toString(16).padStart(4, "0");
-    const nextAddr = toHex(nextAddrNum);
-
-    setStatus("pending", "Provisioning… " + nextAddr);
-    document.getElementById("output").innerHTML =
-        '<span class="spinner"></span> Provisioning ' + uuid + '…';
-
-    await sendMessage(`prov ${uuid} 0 0`);
-
-    addressCache.push(nextAddrNum); // store as number so addr + u is addition, not concatenation
-    renderProvisionedList();
-
-    nonProvCache.splice(selectedDeviceIdx, 1);
-    selectedDeviceIdx = null;
-    document.getElementById("provisionBtn").disabled = true;
-    renderDeviceList();
-
-    setStatus("success", "Provisioned " + nextAddr);
-    setOutput(`Device ${uuid} provisioned at address ${nextAddr}`);
-}
-
-async function toggle_light(addr, on) {
+async function toggle_light(net_idx, app_idx, addr, on) {
     if (on) {
-        await sendMessage(`light 0 0 ${addr} 1`);
+        await sendMessage(`light ${net_idx} ${app_idx} ${addr} 1`);
     } else {
-        await sendMessage(`light 0 0 ${addr} 0`);
+        await sendMessage(`light ${net_idx} ${app_idx} ${addr} 0`);
     }
 }

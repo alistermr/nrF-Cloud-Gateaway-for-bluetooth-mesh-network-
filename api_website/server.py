@@ -79,6 +79,8 @@ def get_messages():
         params["pageLimit"] = pagelimit
     else:
         params["pageLimit"] = 1
+    if start := request.args.get("start"):
+        params["start"] = start
 
     url = f"{BASE_URL}/messages"
     try:
@@ -86,12 +88,6 @@ def get_messages():
         status_code = response.status_code
         try:
             body = response.json()
-            for item in body["items"]:
-                print(item["message"]["data"])
-                try:
-                    item["message"]["data"] = json.loads(item["message"]["data"])
-                except Exception:
-                    pass
         except ValueError:
             body = {"raw": response.text}
 
