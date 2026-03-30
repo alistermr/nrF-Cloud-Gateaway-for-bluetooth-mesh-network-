@@ -328,8 +328,9 @@ static int create_timestamped_device_message(struct nrf_cloud_obj *const msg,
 	}
 
 	/* Create message object */
-	err = nrf_cloud_obj_msg_init(msg, appid,
-								 IS_ENABLED(CONFIG_NRF_CLOUD_COAP) ? NULL : msg_type);
+	//err = nrf_cloud_obj_msg_init(msg, appid, IS_ENABLED(CONFIG_NRF_CLOUD_COAP) ? NULL : msg_type);
+	err = nrf_cloud_obj_msg_init(msg, appid, NULL);
+	
 	if (err)
 	{
 		LOG_ERR("Failed to initialize message with appid %s and msg type %s",
