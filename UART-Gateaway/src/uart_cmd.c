@@ -235,7 +235,8 @@ void add_appkey_to_net(uint16_t net_idx, uint16_t app_idx) {
             break;
         }
     }
-
+    
+    enqueue_command("mesh target dst local");
     // Hvis NetKey ikke finnes, legg den til
     if (net_pos == -1 && net_key_count < MAX_NETKEYS) {
         net_pos = net_key_count;
@@ -243,7 +244,8 @@ void add_appkey_to_net(uint16_t net_idx, uint16_t app_idx) {
         mesh_topology[net_pos].app_key_count = 0;
         net_key_count++;
         char cmd[64];
-        snprintf(cmd, sizeof(cmd), "mesh prov local %u 0x0001", net_idx);
+        enqueue_command("mesh target net 0");
+        snprintf(cmd, sizeof(cmd), "mesh models cfg netkey add %u", net_idx);
         enqueue_command(cmd);
     }
 
@@ -253,7 +255,8 @@ void add_appkey_to_net(uint16_t net_idx, uint16_t app_idx) {
         
         // Nå kan du generere kommandoen dynamisk
         char cmd[64];
-        enqueue_command("mesh target dst local");
+        snprintf(cmd, sizeof(cmd), "mesh cdb app-key-add %u %u", net_idx, app_idx);
+        enqueue_command(cmd);
         snprintf(cmd, sizeof(cmd), "mesh models cfg appkey add %u %u", net_idx, app_idx);
         enqueue_command(cmd);
     }
