@@ -35,7 +35,7 @@ LOG_MODULE_REGISTER(nrf_cloud_mqtt_device_message,
 
 #define UART_NODE DT_NODELABEL(uart2)
 static const struct device *uart_dev = DEVICE_DT_GET(UART_NODE);
-#define UART_RX_BUF_SIZE 512
+#define UART_RX_BUF_SIZE 1024
 static char uart_rx_buf[UART_RX_BUF_SIZE];
 static size_t uart_rx_idx;
 #define UART_RX_CLOUD_APPID "uart_rx"
@@ -105,7 +105,7 @@ static int send_uart_rx_to_cloud(const char *uart_line)
 	}
 
 	char appid[16];
-	char *message_str;
+	const char *message_str;
 	sscanf(uart_line, "%15s", appid);
 	message_str = uart_line + strlen(appid) + 1;
 
@@ -179,7 +179,7 @@ static void uart_callback(const struct device *dev, void *user_data)
 	uint8_t byte;
 	while (uart_fifo_read(dev, &byte, 1) == 1)
 	{
-		if ((byte == '\n') || (byte == '\r'))
+		if (byte == '\n')
 		{
 			if (uart_rx_idx > 0)
 			{

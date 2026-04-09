@@ -1,6 +1,12 @@
 const API = "http://localhost:5000"; // Flask backend URL
+
+//Device 1
 //const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/50344654-3037-4bdd-8004-2314d6fc32b9/c2d";
-const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/50344654-3037-4bdd-8004-2314d6fc32b9/d2c"
+//const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/50344654-3037-4bdd-8004-2314d6fc32b9/d2c"
+
+//Device 2
+//const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/5034474b-3731-4738-80d4-0c0ffd414431/c2d";
+const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/5034474b-3731-4738-80d4-0c0ffd414431/d2c";
 
 
 let addressCache = [0]; // index 0 = gateway placeholder, provisioned nodes start at index 1
@@ -78,7 +84,7 @@ async function getMessages() {
 let last_message_time = new Date().toISOString();
 let messageCache = "";
 while (true) {
-    try {const res = await fetch(API + "/api/get_messages?topic=" + encodeURIComponent(topic) + "&pageLimit=5" + "&start=" + last_message_time);
+    try {const res = await fetch(API + "/api/get_messages?topic=" + encodeURIComponent(topic) + "&pageLimit=25" + "&start=" + last_message_time);
         const data = await res.json();
         const items = data.response?.items ?? [];
         if (res.ok) {
@@ -108,11 +114,14 @@ while (true) {
             // increase last_message_time by 1ms to avoid fetching the same message again
             last_message_time = new Date(new Date(last_message_time).getTime() + 1).toISOString();
             console.log("Latest message received at:", last_message_time);
-            const formatted = items.map(m => {
-                const time = new Date(m.receivedAt).toLocaleString();
-                const dataStr = String("AppId: " + m.message.appId + ", message: " + m.message.data);
-                return `[${time}] ${dataStr}`;
-            }).join("\n");
+            const formatted = items
+                .slice()
+                .reverse()
+                .map(m => {
+                    const dataStr = "AppId: " + m.message.appId + ", message: " + m.message.data;
+                    return dataStr;
+                })
+                .join("\n");
             messageCache = formatted + "\n" + messageCache;
         }
         setOutput(messageCache);

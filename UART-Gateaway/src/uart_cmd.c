@@ -32,7 +32,7 @@ static const char *commands[] = {
     "scan", // format: scan
     "prov", // format: prov <uuid> <net_idx> <app_idx>
     "light", // format: light_on <net_idx> <app_idx> <dst_addr> <on/off>
-    
+    "cdb", // format: cdb, Function for getting cdb show
     NULL
 };
 
@@ -173,11 +173,19 @@ static void uart30_send(const char *data, const char *subject)
 
 
     char json_buf[1024];
-    snprintf(json_buf, sizeof(json_buf), "%s %s\n",subject, data);
+    snprintf(json_buf, sizeof(json_buf), "%s %s",subject, data);
     size_t json_len = strip_ansi_escapes(json_buf, strlen(json_buf), json_buf, sizeof(json_buf));
     for (size_t i = 0; i < json_len; i++) {
         uart_poll_out(uart_dev, json_buf[i]);
+        if(json_buf[i] == '\n') {
+            for (int i = 0; i < strlen(subject); i++) {
+                uart_poll_out(uart_dev, subject[i]);
+
+            }
+            uart_poll_out(uart_dev, ' ');
+        }
     }
+    uart_poll_out(uart_dev, '\n');
 }
 
 //receives uart commands from uart and runs them
@@ -341,7 +349,8 @@ static void run_command(const char *command)
         char response[128];
         snprintf(response, sizeof(response), "Light command sent to 0x%04x", dst_addr);
         uart30_send(response, "response");
-    
+    }else if (strncmp(command, "cdb", strlen("cdb")) == 0) {
+        enqueue_command("mesh cdb show");
     }else {
         enqueue_command(command);
         const char *response = "Command ran";
@@ -374,15 +383,13 @@ static void cmd_executor_thread(void)
         if (sh) {
             shell_backend_dummy_clear_output(sh);
             int ret = shell_execute_cmd(sh, local_cmd);
-            //k_sleep(K_MSEC(100));
             printk("shell_execute_cmd returned: %d\n", ret);
             size_t output_size;
             const char *output = shell_backend_dummy_get_output(sh, &output_size);
             printk("Command output: %.*s", (int)output_size, output);
-            if (output_size > 0) {
-            } else {
-                char resp[64];
-                snprintf(resp, sizeof(resp), "ret=%d", ret);
+            //print for debugging, possible to see all reponse and relay to cloud
+            if (strcmp(local_cmd, "mesh cdb show") == 0) {
+                uart30_send(output, "cdb");
             }
         } else {
             printk("Shell backend not available\n");
@@ -390,7 +397,7 @@ static void cmd_executor_thread(void)
     }
 }
 
-K_THREAD_DEFINE(cmd_executor_tid, 2048, cmd_executor_thread, NULL, NULL, NULL, 5, 0, 0);
+K_THREAD_DEFINE(cmd_executor_tid, 4096, cmd_executor_thread, NULL, NULL, NULL, 5, 0, 0);
 
 int uart_cmd_init(void)
 {
