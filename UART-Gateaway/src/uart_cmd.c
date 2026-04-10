@@ -354,7 +354,44 @@ static void run_command(const char *command)
         uart30_send(response, "response");
     }else if (strncmp(command, "cdb", strlen("cdb")) == 0) {
         enqueue_command("mesh cdb show");
-    }else {
+    }else if (strncmp(command, "replace", strlen("replace")) == 0) {
+        char netkey[33] = {0}, appkey[33] = {0};
+        if (sscanf(command, "replace netkey:%32s appkey:%32s", netkey, appkey) != 2) {
+            printk("wrong formating replace command, Usage: replace netkey:<key> appkey:<key>\n");
+            char response[128];
+            snprintf(response, sizeof(response), "wrong formating replace command, Usage: replace netkey:<key> appkey:<key>");
+            uart30_send(response, "Error");
+            return;
+        }
+        char cmd[100];
+        enqueue_command("mesh init");
+        snprintf(cmd, sizeof(cmd), "mesh cdb create %s", netkey);
+        enqueue_command(cmd);
+        snprintf(cmd, sizeof(cmd), "mesh cdb app-key-add 0 0 %s", appkey);
+        enqueue_command(cmd);
+        enqueue_command("mesh prov local 0 0");
+        enqueue_command("mesh target net 0");
+        enqueue_command("mesh models cfg appkey add 0 0");
+        char response[128];
+        uart30_send("reProvisioned", "reProvisioned");
+    }
+    else if(strncmp(command, "node", strlen("node")) == 0) {
+        char uuid[33] = {0}, devkey[33] = {0};
+        if(sscanf(command, "node uuid:%32s devkey:%32s", uuid, devkey) != 2 ) {
+            printk("wrong formating node command, Usage: node uuid:<uuid> devkey:<devkey>\n");
+            char response[128];
+            snprintf(response, sizeof(response), "wrong formating node command, Usage: node uuid:<uuid> devkey:<devkey>");
+            uart30_send(response, "Error");
+            return;
+        }
+        char cmd[100];
+        snprintf(cmd, sizeof(cmd), "mesh cdb node-add %32s 0x%04x 4 0 %32s", uuid, prov_count, devkey);
+        enqueue_command(cmd);
+        char response[128];
+        snprintf(response, sizeof(response), "node provisioned:%s", uuid);
+        uart30_send(response, response);
+    }
+    else {
         enqueue_command(command);
         const char *response = "Command ran";
         uart30_send(response, "response");

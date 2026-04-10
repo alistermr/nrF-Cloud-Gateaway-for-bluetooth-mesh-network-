@@ -313,17 +313,14 @@ async function replaceNode() {
             await sendMessage("No cdb Data");
             return;
         }
-        await sendMessage("netKey:" + cdbData.subnets.map(s => s.netKey).join(","));
-        await sendMessage("appKey:" + cdbData.appKeys.map(k => k.appKey).join(","));
+        await sendMessage("replace netkey:" + cdbData.subnets.map(s => s.netKey).join(",") +
+        " appkey:" + cdbData.appKeys.map(k => k.appKey).join(","));
         await waitForAck("reProvisioned");
         for (const node of cdbData.nodes) {
             if((node.address === "0x0001") || (node.uuid === "dddd0000000000000000000000000000")) continue; // skip gateway
-            await sendMessage(`node: ${node.uuid} ${node.devKey}`);
+            await sendMessage(`node uuid:${node.uuid} devkey:${node.devKey}`);
             await waitForAck(`node provisioned:${node.uuid}`);
         }
-        
-
-        
 }
 
 async function provisionSelected() {
