@@ -16,6 +16,20 @@ let prov_beacon = false;
 let selectedDeviceIdx = null;
 let scanPollTimer = null;
 
+let cdbData = { nodes: [], subnets: [], appKeys: [] };
+
+const ackWaiters = new Map(); // appId -> { resolve, reject }
+
+function waitForAck(appId, timeoutMs = 10000) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            ackWaiters.delete(appId);
+            reject(new Error(`Timeout waiting for ack: ${appId}`));
+        }, timeoutMs);
+        ackWaiters.set(appId, { resolve: (data) => { clearTimeout(timer); resolve(data); }, reject });
+    });
+}
+
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -98,6 +112,11 @@ while (true) {
         } else {
             for (const item of items) {
                 console.log("Processing message with appId:", item.message.appId);
+                if (ackWaiters.has(item.message.appId)) {
+                    const waiter = ackWaiters.get(item.message.appId);
+                    ackWaiters.delete(item.message.appId);
+                    waiter.resolve(item.message.data);
+                }
                 if (item.message.appId === "UUID") {
                     getUnprovisionedDevice(item.message.data);
                 }
@@ -107,6 +126,9 @@ while (true) {
                 }
                 if (item.message.appId === "Provisioning") {
                     getProvisionedDevice(item.message.data);
+                }
+                if (item.message.appId === "cdb") {
+                    saveCdb(item.message.data);
                 }
             }
             console.log("Fetched messages:", items);
@@ -226,6 +248,82 @@ function selectDevice(idx) {
     selectedDeviceIdx = idx;
     document.getElementById("provisionBtn").disabled = false;
     renderDeviceList();
+}
+
+async function saveCdb(data) {
+    const line = data.trim();
+    if (!line) return;
+
+    // Skip header/separator/summary lines
+    if (
+        line.startsWith("Mesh Network") ||
+        line.startsWith("===") ||
+        line.startsWith("---") ||
+        line.startsWith("Address") ||
+        line.startsWith("NetIdx") ||
+        line.startsWith(">")
+    ) return;
+
+    const fields = line.split(/\s+/);
+
+    if (fields.length === 5 && /^0x[0-9a-fA-F]+$/i.test(fields[0])) {
+        // Node: Address  Elements  Flags  UUID  DevKey
+        const node = {
+            address: fields[0],
+            elements: parseInt(fields[1], 10),
+            flags: fields[2],
+            uuid: fields[3],
+            devKey: fields[4],
+        };
+        const exists = cdbData.nodes.some(n => n.address === node.address);
+        if (!exists) cdbData.nodes.push(node);
+
+        // Sync address into provCache / addressCache if not gateway (0x0001)
+        const addr = parseInt(node.address, 16);
+        if (addr !== 0x0001) {
+            for (let i = 0; i < node.elements; i++) {
+                const elemAddr = addr + i;
+                const already = addressCache.slice(1).some(e => e[2] === elemAddr);
+                if (!already) {
+                    addressCache.push([0, 0, elemAddr]);
+                }
+            }
+            if (!provCache.includes(addr)) provCache.push(addr);
+        }
+        renderProvisionedList();
+
+    } else if (fields.length === 2 && /^0x[0-9a-fA-F]+$/i.test(fields[0]) && /^[0-9a-fA-F]{32}$/i.test(fields[1])) {
+        // Subnet: NetIdx  NetKey
+        const subnet = { netIdx: fields[0], netKey: fields[1] };
+        const exists = cdbData.subnets.some(s => s.netIdx === subnet.netIdx);
+        if (!exists) cdbData.subnets.push(subnet);
+
+    } else if (fields.length === 3 && /^0x[0-9a-fA-F]+$/i.test(fields[0]) && /^0x[0-9a-fA-F]+$/i.test(fields[1]) && /^[0-9a-fA-F]{32}$/i.test(fields[2])) {
+        // App-key: NetIdx  AppIdx  AppKey
+        const appKey = { netIdx: fields[0], appIdx: fields[1], appKey: fields[2] };
+        const exists = cdbData.appKeys.some(k => k.netIdx === appKey.netIdx && k.appIdx === appKey.appIdx);
+        if (!exists) cdbData.appKeys.push(appKey);
+    }
+
+    console.log("CDB state:", JSON.stringify(cdbData, null, 2));
+}
+
+async function replaceNode() {
+        if (cdbData.nodes.length === 0) {
+            await sendMessage("No cdb Data");
+            return;
+        }
+        await sendMessage("netKey:" + cdbData.subnets.map(s => s.netKey).join(","));
+        await sendMessage("appKey:" + cdbData.appKeys.map(k => k.appKey).join(","));
+        await waitForAck("reProvisioned");
+        for (const node of cdbData.nodes) {
+            if((node.address === "0x0001") || (node.uuid === "dddd0000000000000000000000000000")) continue; // skip gateway
+            await sendMessage(`node: ${node.uuid} ${node.devKey}`);
+            await waitForAck(`node provisioned:${node.uuid}`);
+        }
+        
+
+        
 }
 
 async function provisionSelected() {
