@@ -2,11 +2,7 @@ const API = "http://localhost:5000"; // Flask backend URL
 
 //Device 1
 //const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/50344654-3037-4bdd-8004-2314d6fc32b9/c2d";
-//const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/50344654-3037-4bdd-8004-2314d6fc32b9/d2c"
-
-//Device 2
-//const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/5034474b-3731-4738-80d4-0c0ffd414431/c2d";
-const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/5034474b-3731-4738-80d4-0c0ffd414431/d2c";
+const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/5034474b-3731-4738-80d4-0c0ffd414431/d2c"
 
 
 let addressCache = [0]; // index 0 = gateway placeholder, provisioned nodes start at index 1

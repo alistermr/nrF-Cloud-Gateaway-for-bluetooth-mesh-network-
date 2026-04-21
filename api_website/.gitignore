@@ -1,0 +1,19 @@
+# --- HEMMELIGHETER ---
+.env
+
+# --- PYTHON ---
+__pycache__/
+*.pyc
+*.pyo
+
+# --- VIRTUAL ENV ---
+venv/
+.env/
+
+# --- OS FILES ---
+.DS_Store
+Thumbs.db
+
+# --- IDE ---
+.vscode/
+.idea/

@@ -1,24 +1,67 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
+import os
 import re
 from datetime import datetime, timezone
 import json
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
-CORS(app)
+
+
+# Bytt til din faktiske frontend-URL når du har lagt den ut på folk.ntnu.no
+ALLOWED_ORIGINS = [
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+    "https://folk.ntnu.no",
+    # "https://folk.ntnu.no/BRUKERNAVN",
+]
+
+CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}})
 
 # NRF Cloud API configuration
-API_KEY = "648758f0b3e4bcbc39a82c8516e68ab2662248af"
+
+API_KEY = os.getenv("NRF_CLOUD_API_KEY")
 BASE_URL = "https://api.nrfcloud.com/v1"
 #DEVICE_ID = "50344654-3037-4bdd-8004-2314d6fc32b9"
 DEVICE_ID = "5034474b-3731-4738-80d4-0c0ffd414431" #2
 
 DELAY = 0
 
+if not API_KEY:
+    raise ValueError("NRF_CLOUD_API_KEY mangler som miljøvariabel")
+
+
+def auth_headers():
+    return {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+
+def bearer_headers():
+    return {
+        "Authorization": f"Bearer {API_KEY}",
+    }
+
+
+def safe_json(response):
+    try:
+        return response.json()
+    except ValueError:
+        return {"raw": response.text}
+
 @app.route("/")
 def index():
     return send_from_directory(".", "index.html")
+
+@app.route("/api/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok"}), 200
 
 
 @app.route("/api/send", methods=["POST"])

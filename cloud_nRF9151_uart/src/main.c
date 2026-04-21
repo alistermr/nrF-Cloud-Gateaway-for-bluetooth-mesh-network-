@@ -49,8 +49,7 @@ static struct k_work uart_rx_cloud_work;
 /* Example message */
 #define CUSTOM_TOPICM_FMT "sample_message"
 #define SAMPLE_MSG_FMT                 \
-	"\"Hello Cloud, from the device! " \
-	"Message ID: %lld\""
+	"\"Board activated\""
 #define SAMPLE_MSG_BUF_SIZE (sizeof(SAMPLE_MSG_FMT) + 19)
 
 /* Network states */
