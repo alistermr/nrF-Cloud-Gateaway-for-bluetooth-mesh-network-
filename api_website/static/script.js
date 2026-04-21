@@ -1,4 +1,9 @@
-const API = "http://localhost:5000"; // Flask backend URL
+
+const API =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:5000"
+    : "https://nrfgateaway.onrender.com/"; //Flask backend URL
 
 //Device 1
 //const topic = "prod/40e92c8d-1ac8-4b08-a28d-69266969ee2c/m/d/50344654-3037-4bdd-8004-2314d6fc32b9/c2d";
