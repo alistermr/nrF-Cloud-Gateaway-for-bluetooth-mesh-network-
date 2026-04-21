@@ -21,7 +21,7 @@ ALLOWED_ORIGINS = [
     # "https://folk.ntnu.no/BRUKERNAVN",
 ]
 
-CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}})
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # NRF Cloud API configuration
 
