@@ -11,17 +11,19 @@ load_dotenv()
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 
 
-# Bytt til din faktiske frontend-URL når du har lagt den ut på folk.ntnu.no
-ALLOWED_ORIGINS = [
-    "http://localhost:5500",
-    "http://127.0.0.1:5500",
-    "http://localhost:5000",
-    "http://127.0.0.1:5000",
-    "https://folk.ntnu.no",
-    # "https://folk.ntnu.no/BRUKERNAVN",
-]
 
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(
+    app,
+    resources={r"/api/*": {
+        "origins": [
+            "https://folk.ntnu.no",
+            "http://localhost:5500",
+            "http://127.0.0.1:5500",
+            "http://localhost:5000",
+            "http://127.0.0.1:5000",
+        ]
+    }}
+)
 
 # NRF Cloud API configuration
 
