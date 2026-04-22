@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 load_dotenv()
 from pathlib import Path
 
+CDB_FILE = Path("latest_cdb.txt")
+
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 
 
@@ -74,33 +76,33 @@ def load_latest_cdb():
 
 
 def process_cdb_items(items):
-    global cdb_buffer, collecting_cdb
+    cdb_items = []
 
-    # sorter eldste -> nyeste så snapshot bygges i riktig rekkefølge
-    sorted_items = sorted(items, key=lambda x: x.get("receivedAt", ""))
-
-    for item in sorted_items:
+    for item in items:
         msg = item.get("message", {})
         app_id = msg.get("appId")
         data = str(msg.get("data", ""))
 
-        if app_id != "cdb":
-            continue
+        if app_id == "cdb":
+            cdb_items.append({
+                "receivedAt": item.get("receivedAt", ""),
+                "data": data
+            })
 
-        # start på nytt snapshot når denne dukker opp
-        if "Mesh Network Information" in data:
-            cdb_buffer = []
-            collecting_cdb = True
+    if not cdb_items:
+        return
 
-        if collecting_cdb:
-            cdb_buffer.append(data)
+    # sorter i riktig rekkefølge
+    cdb_items.sort(key=lambda x: x["receivedAt"])
 
-        # slutt på snapshot
-        if collecting_cdb and "> Total app-keys:" in data:
-            full_cdb = "\n".join(cdb_buffer).strip()
-            save_latest_cdb(full_cdb)
-            collecting_cdb = False
+    lines = [entry["data"] for entry in cdb_items]
 
+    full_cdb = "\n".join(lines).strip()
+
+    # lagre bare hvis dette faktisk ser ut som en CDB
+    if "Mesh Network Information" in full_cdb:
+        save_latest_cdb(full_cdb)
+        print("Saved latest CDB snapshot")
 
 @app.route("/")
 def index():
