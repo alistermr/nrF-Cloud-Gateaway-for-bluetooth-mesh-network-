@@ -9,11 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from pathlib import Path
 
-CDB_FILE = Path("latest_cdb.txt")
-
 app = Flask(__name__, static_folder="static", static_url_path="/static")
-
-
 
 CORS(
     app,
@@ -36,8 +32,6 @@ BASE_URL = "https://api.nrfcloud.com/v1"
 DEVICE_ID = "5034474b-3731-4738-80d4-0c0ffd414431" #2
 
 CDB_FILE = Path("latest_cdb.txt")
-cdb_buffer = []
-collecting_cdb = False
 
 DELAY = 0
 
@@ -172,6 +166,7 @@ def get_messages():
         "deviceId": DEVICE_ID,
         "pageSort": "desc",
     }
+
     if appId := request.args.get("appId"):
         params["appId"] = appId
     if topic := request.args.get("topic"):
@@ -187,19 +182,19 @@ def get_messages():
     try:
         response = requests.get(url, headers=headers, params=params)
         status_code = response.status_code
+
         try:
             body = response.json()
         except ValueError:
             body = {"raw": response.text}
 
-            items = body.get("items", [])
-            process_cdb_items(items)
+        items = body.get("items", [])
+        process_cdb_items(items)
 
         return jsonify({"status": status_code, "response": body}), 200
 
     except requests.exceptions.RequestException as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/api/device", methods=["GET"])
 def get_device_state():
