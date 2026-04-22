@@ -64,8 +64,8 @@ def safe_json(response):
     except ValueError:
         return {"raw": response.text}
     
-
 def save_latest_cdb(text):
+    print("Writing CDB to file:", CDB_FILE.resolve())
     CDB_FILE.write_text(text, encoding="utf-8")
 
 
@@ -76,6 +76,9 @@ def load_latest_cdb():
 
 
 def process_cdb_items(items):
+    print("process_cdb_items called")
+    print("Number of items received:", len(items))
+
     cdb_items = []
 
     for item in items:
@@ -83,26 +86,32 @@ def process_cdb_items(items):
         app_id = msg.get("appId")
         data = str(msg.get("data", ""))
 
+        print("app_id:", app_id, "| data:", data[:80])
+
         if app_id == "cdb":
             cdb_items.append({
                 "receivedAt": item.get("receivedAt", ""),
                 "data": data
             })
 
+    print("Number of cdb items found:", len(cdb_items))
+
     if not cdb_items:
+        print("No cdb items found, returning")
         return
 
-    # sorter i riktig rekkefølge
     cdb_items.sort(key=lambda x: x["receivedAt"])
-
     lines = [entry["data"] for entry in cdb_items]
-
     full_cdb = "\n".join(lines).strip()
 
-    # lagre bare hvis dette faktisk ser ut som en CDB
+    print("Built CDB text:")
+    print(full_cdb[:500])
+
     if "Mesh Network Information" in full_cdb:
         save_latest_cdb(full_cdb)
         print("Saved latest CDB snapshot")
+    else:
+        print("Did not save CDB because 'Mesh Network Information' was not found")
 
 @app.route("/")
 def index():
@@ -218,6 +227,7 @@ def get_device_state():
 @app.route("/api/cdb/latest", methods=["GET"])
 def get_latest_cdb():
     latest = load_latest_cdb()
+    print("Returning latest CDB, length =", len(latest))
     return jsonify({
         "status": "ok",
         "cdb": latest
