@@ -99,7 +99,7 @@ async function getMessages() {
 let last_message_time = new Date().toISOString();
 let messageCache = "";
 while (true) {
-    try {const res = await fetch(API + "/api/get_messages?topic=" + encodeURIComponent(topic) + "&pageLimit=25" + "&start=" + last_message_time);
+    try {const res = await fetch(API + "/api/get_messages?topic=" + encodeURIComponent(topic) + "&pageLimit=100" + "&start=" + last_message_time);
         const data = await res.json();
         const items = data.response?.items ?? [];
         if (res.ok) {
