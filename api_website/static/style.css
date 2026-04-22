@@ -196,6 +196,22 @@ button:active { transform: scale(.97); }
     line-height: 1.55;
 }
 
+#cdbOutput {
+    width: 100%;
+    min-height: 180px;
+    padding: .7rem .85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text-mono);
+    font-family: var(--mono);
+    font-size: .78rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-y: auto;
+    line-height: 1.55;
+}
+
 /* ── Spinner ── */
 .spinner {
     display: inline-block;

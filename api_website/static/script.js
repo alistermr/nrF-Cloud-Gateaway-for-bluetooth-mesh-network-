@@ -376,3 +376,29 @@ async function toggle_light(net_idx, app_idx, addr, on) {
         await sendMessage(`light ${net_idx} ${app_idx} ${addr} 0`);
     }
 }
+
+async function loadLatestCdb() {
+    try {
+        const res = await fetch(API + "/api/cdb/latest");
+        const data = await res.json();
+
+        const cdbBox = document.getElementById("cdbOutput");
+        if (!cdbBox) return;
+
+        if (data.cdb && data.cdb.trim() !== "") {
+            cdbBox.textContent = data.cdb;
+        } else {
+            cdbBox.textContent = "No CDB stored yet.";
+        }
+
+    } catch (err) {
+        const cdbBox = document.getElementById("cdbOutput");
+        if (cdbBox) {
+            cdbBox.textContent = "Error loading CDB: " + err.message;
+        }
+    }
+}
+
+loadLatestCdb();
+
+setInterval(loadLatestCdb, 5000);

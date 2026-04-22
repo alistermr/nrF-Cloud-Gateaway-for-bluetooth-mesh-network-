@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import json
 from dotenv import load_dotenv
 load_dotenv()
+from pathlib import Path
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 
@@ -32,6 +33,10 @@ BASE_URL = "https://api.nrfcloud.com/v1"
 #DEVICE_ID = "50344654-3037-4bdd-8004-2314d6fc32b9"
 DEVICE_ID = "5034474b-3731-4738-80d4-0c0ffd414431" #2
 
+CDB_FILE = Path("latest_cdb.txt")
+cdb_buffer = []
+collecting_cdb = False
+
 DELAY = 0
 
 if not API_KEY:
@@ -56,6 +61,46 @@ def safe_json(response):
         return response.json()
     except ValueError:
         return {"raw": response.text}
+    
+
+def save_latest_cdb(text):
+    CDB_FILE.write_text(text, encoding="utf-8")
+
+
+def load_latest_cdb():
+    if CDB_FILE.exists():
+        return CDB_FILE.read_text(encoding="utf-8")
+    return ""
+
+
+def process_cdb_items(items):
+    global cdb_buffer, collecting_cdb
+
+    # sorter eldste -> nyeste så snapshot bygges i riktig rekkefølge
+    sorted_items = sorted(items, key=lambda x: x.get("receivedAt", ""))
+
+    for item in sorted_items:
+        msg = item.get("message", {})
+        app_id = msg.get("appId")
+        data = str(msg.get("data", ""))
+
+        if app_id != "cdb":
+            continue
+
+        # start på nytt snapshot når denne dukker opp
+        if "Mesh Network Information" in data:
+            cdb_buffer = []
+            collecting_cdb = True
+
+        if collecting_cdb:
+            cdb_buffer.append(data)
+
+        # slutt på snapshot
+        if collecting_cdb and "> Total app-keys:" in data:
+            full_cdb = "\n".join(cdb_buffer).strip()
+            save_latest_cdb(full_cdb)
+            collecting_cdb = False
+
 
 @app.route("/")
 def index():
@@ -136,6 +181,9 @@ def get_messages():
         except ValueError:
             body = {"raw": response.text}
 
+            items = body.get("items", [])
+            process_cdb_items(items)
+
         return jsonify({"status": status_code, "response": body}), 200
 
     except requests.exceptions.RequestException as e:
@@ -164,6 +212,14 @@ def get_device_state():
 
     except requests.exceptions.RequestException as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route("/api/cdb/latest", methods=["GET"])
+def get_latest_cdb():
+    latest = load_latest_cdb()
+    return jsonify({
+        "status": "ok",
+        "cdb": latest
+    }), 200
 
 
 if __name__ == "__main__":
