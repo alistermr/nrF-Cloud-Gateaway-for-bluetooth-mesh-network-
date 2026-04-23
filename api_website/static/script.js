@@ -181,14 +181,6 @@ async function getProvisionedDevice(msg) {
     }
     console.log("Updated addressCache after adding new devices:", addressCache);
 
-
-    if (!addressCache.includes(startAddr)) {
-        addressCache.push(startAddr);
-    }
-    if (!provCache.includes(startAddr)) {
-        provCache.push(startAddr);
-    }
-
     setStatus(
         "success",
         `binding complete on app_idx ${app_idx} and net_idx ${net_idx} on addresses 0x${startAddr.toString(16)}-0x${endAddr.toString(16)}`
@@ -278,7 +270,7 @@ async function saveCdb(data) {
         const exists = cdbData.nodes.some(n => n.address === node.address);
         if (!exists) cdbData.nodes.push(node);
 
-        // Sync address into provCache / addressCache if not gateway (0x0001)
+        // Sync address into addressCache if not gateway (0x0001)
         const addr = parseInt(node.address, 16);
         if (addr !== 0x0001) {
             for (let i = 0; i < node.elements; i++) {
@@ -288,7 +280,6 @@ async function saveCdb(data) {
                     addressCache.push([0, 0, elemAddr]);
                 }
             }
-            if (!provCache.includes(addr)) provCache.push(addr);
         }
         renderProvisionedList();
 

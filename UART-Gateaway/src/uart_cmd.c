@@ -284,14 +284,12 @@ static void run_command(const char *command)
             printk("Scanning for devices...\n");
             const char *response = "scan started";
             uart30_send(response, "response");
-            //enqueue_command("mesh prov beacon-listen on");
             num_uuids_cur_scan = 0; // Reset UUID list for new scan
             bt_mesh_shell_prov.unprovisioned_beacon = uart_unprov_beacon_cb;
         } else {
             printk("Stopping scan...\n");
             const char *response = "scan stopped";
             uart30_send(response, "response");
-            //enqueue_command("mesh prov beacon-listen off");
             bt_mesh_shell_prov.unprovisioned_beacon = NULL;
         }
     } else if (strncmp(command, "prov", strlen("prov")) == 0) {
