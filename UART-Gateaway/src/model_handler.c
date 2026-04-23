@@ -1,11 +1,14 @@
 #include <zephyr/bluetooth/bluetooth.h>
 #include <bluetooth/mesh/models.h>
+#include <bluetooth/mesh/gen_onoff_cli.h>
+#include <errno.h>
 
 /*ADDED INCLUDES*/
 #include <zephyr/shell/shell.h>
 #include <zephyr/bluetooth/mesh/shell.h>
 
 static struct bt_mesh_cfg_cli cfg_cli;
+static struct bt_mesh_onoff_cli onoff_cli = BT_MESH_ONOFF_CLI_INIT(NULL);
 
 #if defined(CONFIG_BT_MESH_DFD_SRV)
 static struct bt_mesh_dfd_srv dfd_srv;
@@ -41,6 +44,7 @@ BT_MESH_SHELL_HEALTH_PUB_DEFINE(health_pub);
 static const struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_CFG_SRV,
 	BT_MESH_MODEL_CFG_CLI(&cfg_cli),
+	BT_MESH_MODEL_ONOFF_CLI(&onoff_cli),
 	BT_MESH_MODEL_HEALTH_SRV(&bt_mesh_shell_health_srv, &health_pub, health_srv_meta),
 	BT_MESH_MODEL_HEALTH_CLI(&bt_mesh_shell_health_cli),
 #if defined(CONFIG_BT_MESH_DFD_SRV)
@@ -122,4 +126,25 @@ static const struct bt_mesh_comp comp = {
 const struct bt_mesh_comp *model_handler_init(void)
 {
 	return &comp;
+}
+
+int model_handler_onoff_set(uint16_t net_idx, uint16_t app_idx, uint16_t dst_addr, bool on_off)
+{
+	struct bt_mesh_msg_ctx ctx = {
+		.net_idx = net_idx,
+		.app_idx = app_idx,
+		.addr = dst_addr,
+		.send_ttl = BT_MESH_TTL_DEFAULT,
+	};
+	struct bt_mesh_onoff_set set = {
+		.on_off = on_off,
+		.reuse_transaction = false,
+		.transition = NULL,
+	};
+
+	if (!bt_mesh_is_provisioned()) {
+		return -EAGAIN;
+	}
+
+	return bt_mesh_onoff_cli_set_unack(&onoff_cli, &ctx, &set);
 }

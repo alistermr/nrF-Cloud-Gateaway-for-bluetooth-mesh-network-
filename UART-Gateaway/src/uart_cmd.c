@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "log_capture.h"
+#include "model_handler.h"
 
 //kanskje
 #include <zephyr/bluetooth/mesh.h>
@@ -254,10 +255,16 @@ void add_appkey_to_net(uint16_t net_idx, uint16_t app_idx) {
         mesh_topology[net_pos].app_indices[mesh_topology[net_pos].app_key_count++] = app_idx;
         
         // Nå kan du generere kommandoen dynamisk
-        char cmd[64];
+        char cmd[96];
         snprintf(cmd, sizeof(cmd), "mesh cdb app-key-add %u %u", net_idx, app_idx);
         enqueue_command(cmd);
         snprintf(cmd, sizeof(cmd), "mesh models cfg appkey add %u %u", net_idx, app_idx);
+        enqueue_command(cmd);
+        /* Bind local Generic OnOff Client (0x1001) to this AppKey */
+        enqueue_command("mesh target dst local");
+        snprintf(cmd, sizeof(cmd), "mesh target net %u", net_idx);
+        enqueue_command(cmd);
+        snprintf(cmd, sizeof(cmd), "mesh models cfg model app-bind 0x0001 %u 0x1001", app_idx);
         enqueue_command(cmd);
     }
 }
@@ -337,17 +344,17 @@ static void run_command(const char *command)
             uart30_send(response, "Error");
             return;
         }
-        char cmd[100];
-        snprintf(cmd, sizeof(cmd), "mesh target net %u", net_idx);
-        enqueue_command(cmd);
-        snprintf(cmd, sizeof(cmd), "mesh target app %u", app_idx);
-        enqueue_command(cmd);
-        snprintf(cmd, sizeof(cmd), "mesh target dst 0x%04x", dst_addr);
-        enqueue_command(cmd);
-        snprintf(cmd, sizeof(cmd), "mesh test net-send 82020%u00", on_off);
-        enqueue_command(cmd);
-
+        int err = model_handler_onoff_set((uint16_t)net_idx,
+                                          (uint16_t)app_idx,
+                                          (uint16_t)dst_addr,
+                                          on_off != 0U);
         char response[128];
+        if (err) {
+            snprintf(response, sizeof(response), "Light command failed to 0x%04x (err %d)", dst_addr, err);
+            uart30_send(response, "Error");
+            return;
+        }
+
         snprintf(response, sizeof(response), "Light command sent to 0x%04x", dst_addr);
         uart30_send(response, "response");
     }else if (strncmp(command, "cdb", strlen("cdb")) == 0) {
