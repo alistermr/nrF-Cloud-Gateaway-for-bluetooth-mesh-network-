@@ -369,7 +369,7 @@ static void run_command(const char *command)
         enqueue_command(cmd);
         snprintf(cmd, sizeof(cmd), "mesh cdb app-key-add 0 0 %s", appkey);
         enqueue_command(cmd);
-        enqueue_command("mesh prov local 0 0");
+        enqueue_command("mesh prov local 0 0x0002");
         enqueue_command("mesh target net 0");
         enqueue_command("mesh models cfg appkey add 0 0");
         char response[128];
