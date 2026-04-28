@@ -452,34 +452,7 @@ button:active { transform: scale(.97); }
     overflow-y: visible;
 }
 
-.node-card {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: .85rem 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: .65rem;
-}
-
-.node-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.node-title {
-    font-size: .9rem;
-    font-weight: 700;
-    color: #fff;
-}
-
-.node-element-count {
-    font-size: .72rem;
-    color: var(--text-dim);
-}
-
-.node-elements {
+.element-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: .5rem;
@@ -496,53 +469,55 @@ button:active { transform: scale(.97); }
 
 .element-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: .35rem .5rem;
+    flex-direction: column;
+    gap: .25rem;
+    padding: .4rem .5rem;
     border-bottom: 1px solid var(--border);
-}
-
-.el-label {
-    font-size: .68rem;
-    font-weight: 600;
-    color: var(--text-dim);
 }
 
 .el-addr {
     font-family: var(--mono);
-    font-size: .62rem;
+    font-size: .7rem;
+    font-weight: 600;
     color: var(--text-mono);
 }
 
+.el-meta {
+    font-family: var(--mono);
+    font-size: .62rem;
+    color: var(--text-dim);
+}
+
 .btn-el-on {
-    flex: 1;
-    padding: .45rem;
+    width: 100%;
+    padding: .5rem;
     background: var(--surface-2);
     color: var(--text);
     border: none;
-    border-bottom: 1px solid var(--border);
     border-radius: 0;
-    font-size: .75rem;
+    font-size: 1.2rem;
     font-weight: 600;
     cursor: pointer;
     transition: background .15s;
     text-align: center;
+    line-height: 1;
 }
 
 .btn-el-on:hover { background: var(--border-hl); }
 
 .btn-el-off {
-    flex: 1;
-    padding: .45rem;
+    width: 100%;
+    padding: .5rem;
     background: var(--red);
     color: #fff;
     border: none;
     border-radius: 0;
-    font-size: .75rem;
+    font-size: 1.2rem;
     font-weight: 600;
     cursor: pointer;
     transition: background .15s;
     text-align: center;
+    line-height: 1;
 }
 
 .btn-el-off:hover { background: #dc2626; }

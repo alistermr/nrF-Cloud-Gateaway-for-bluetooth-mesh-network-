@@ -2,13 +2,48 @@
 #include <bluetooth/mesh/models.h>
 #include <bluetooth/mesh/gen_onoff_cli.h>
 #include <errno.h>
+#include <stdio.h>
+#include <zephyr/sys/printk.h>
+#include "uart_cmd.h"
 
 /*ADDED INCLUDES*/
 #include <zephyr/shell/shell.h>
 #include <zephyr/bluetooth/mesh/shell.h>
 
 static struct bt_mesh_cfg_cli cfg_cli;
-static struct bt_mesh_onoff_cli onoff_cli = BT_MESH_ONOFF_CLI_INIT(NULL);
+
+static void OnOff_status_cb(struct bt_mesh_onoff_cli *cli,
+                            struct bt_mesh_msg_ctx *ctx,
+                            const struct bt_mesh_onoff_status *status)
+{
+	(void)cli;
+
+	if (!ctx || !status) {
+		printk("OnOff status callback received invalid data\n");
+		return;
+	}
+
+	printk("OnOff status from 0x%04x: status=%u",
+	       ctx->addr,
+	       status->present_on_off ? 1U : 0U);
+
+	if (status->remaining_time >= 0) {
+		printk(", target=%u, remaining=%ld ms",
+		       status->target_on_off ? 1U : 0U,
+		       (long)status->remaining_time);
+	}
+
+	printk("\n");
+
+	char status_msg[96];
+	snprintf(status_msg, sizeof(status_msg),
+	         "src=0x%04x status=%s",
+	         ctx->addr,
+	         status->present_on_off ? "ON" : "OFF");
+	uart30_send(status_msg, "OnOff_status");
+}
+
+static struct bt_mesh_onoff_cli onoff_cli = BT_MESH_ONOFF_CLI_INIT(OnOff_status_cb);
 
 #if defined(CONFIG_BT_MESH_DFD_SRV)
 static struct bt_mesh_dfd_srv dfd_srv;

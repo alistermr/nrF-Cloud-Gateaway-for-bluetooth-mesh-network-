@@ -20,6 +20,7 @@
 #define CMD_BUFFER_SIZE 128
 #define CMD_QUEUE_LEN   32
 #define RX_CMD_QUEUE_LEN 32
+#define ONOFF_STATUS_GROUP_ADDR 0xC000
 //static char *cmd_buffer[CMD_BUFFER_SIZE];
 //static int *cmd_buffer_pos = 0;
 //static K_SEM_DEFINE(cmd_sem, 0, 1);
@@ -56,7 +57,7 @@ static int prov_count = 0x0010;
 
 
 static void run_command(const char *command);
-static void uart30_send(const char *data, const char *subject);
+void uart30_send(const char *data, const char *subject);
 static bool enqueue_command(const char *cmd); 
 
 static void uuid_to_str(const uint8_t uuid[16], char *out, size_t out_len)
@@ -105,7 +106,7 @@ static void uart_node_added_cb(uint16_t net_idx,
                                uint16_t addr,
                                uint8_t num_elem)
 {
-        char cmd[64];
+    char cmd[CMD_BUFFER_SIZE];
         snprintf(cmd, sizeof(cmd), "mesh target dst 0x%04x", addr);
         enqueue_command(cmd);
         snprintf(cmd, sizeof(cmd), "mesh target net %u", net_idx);
@@ -114,6 +115,9 @@ static void uart_node_added_cb(uint16_t net_idx,
         enqueue_command(cmd);
         for (int i = 0; i < num_elem; i++) {
             snprintf(cmd, sizeof(cmd), "mesh models cfg model app-bind 0x%04x %u 0x1000", addr + i, cur_app_idx);
+            enqueue_command(cmd);
+            /* Configure Generic OnOff Server publications to a shared group address. */
+            snprintf(cmd, sizeof(cmd), "mesh models cfg model pub 0x%04x 0x1000 0x%04x %u 0 7 0 0 0 0", addr + i, ONOFF_STATUS_GROUP_ADDR, cur_app_idx);
             enqueue_command(cmd);
             prov_count += 1;
         }
@@ -166,7 +170,7 @@ size_t strip_ansi_escapes(const char *src, size_t src_len, char *dst, size_t dst
     return dst_pos;
 }
 
-static void uart30_send(const char *data, const char *subject)
+void uart30_send(const char *data, const char *subject)
 {
     if (!uart_dev || !device_is_ready(uart_dev)) {
         return;
@@ -266,6 +270,9 @@ void add_appkey_to_net(uint16_t net_idx, uint16_t app_idx) {
         enqueue_command(cmd);
         snprintf(cmd, sizeof(cmd), "mesh models cfg model app-bind 0x0001 %u 0x1001", app_idx);
         enqueue_command(cmd);
+        /* Subscribe local Generic OnOff Client to status publications. */
+        snprintf(cmd, sizeof(cmd), "mesh models cfg model sub-add 0x0001 0x%04x 0x1001", ONOFF_STATUS_GROUP_ADDR);
+        enqueue_command(cmd);
     }
 }
 
@@ -354,9 +361,8 @@ static void run_command(const char *command)
             uart30_send(response, "Error");
             return;
         }
-
-        snprintf(response, sizeof(response), "Light command sent to 0x%04x", dst_addr);
-        uart30_send(response, "response");
+        //snprintf(response, sizeof(response), "Light command sent to 0x%04x", dst_addr);
+        //uart30_send(response, "response"); //response will be sent from onoff status callback when status is received
     }else if (strncmp(command, "cdb", strlen("cdb")) == 0) {
         enqueue_command("mesh cdb show");
     }else if (strncmp(command, "replace", strlen("replace")) == 0) {

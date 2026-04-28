@@ -15,6 +15,7 @@ let provCache = [];
 let prov_beacon = false;
 let selectedDeviceIdx = null;
 let scanPollTimer = null;
+const deviceStates = new Map();
 
 let cdbData = { nodes: [], subnets: [], appKeys: [] };
 
@@ -44,6 +45,75 @@ function setStatus(type, text) {
 function setOutput(content) {
     document.getElementById("output").textContent =
         typeof content === "string" ? content : JSON.stringify(content, null, 2);
+}
+
+function normalizeAddress(addr) {
+    if (typeof addr === "number") {
+        return `0x${addr.toString(16).padStart(4, "0")}`;
+    }
+
+    const text = String(addr || "").trim();
+    if (!text) return "0x0000";
+
+    if (text.startsWith("0x") || text.startsWith("0X")) {
+        return `0x${text.slice(2).toLowerCase().padStart(4, "0")}`;
+    }
+
+    const parsed = Number.parseInt(text, 10);
+    if (Number.isNaN(parsed)) {
+        return "0x0000";
+    }
+
+    return `0x${parsed.toString(16).padStart(4, "0")}`;
+}
+
+function getDeviceKey(addr) {
+    return normalizeAddress(addr);
+}
+
+function getDeviceStatus(addr) {
+    return deviceStates.get(getDeviceKey(addr)) || "off";
+}
+
+function setDeviceStatus(addr, status) {
+    deviceStates.set(getDeviceKey(addr), status.toLowerCase() === "on" ? "on" : "off");
+}
+
+function parseOnOffStatusMessage(message) {
+    const match = String(message || "").match(/src=(0x[0-9a-fA-F]+)\s+status=(ON|OFF)\b/i);
+    if (!match) return null;
+
+    return {
+        address: normalizeAddress(match[1]),
+        status: match[2].toLowerCase(),
+    };
+}
+
+function addProvisionedEntity(netIdx, appIdx, addr, overwriteMetadata = true) {
+    const address = normalizeAddress(addr);
+    const existing = addressCache.find(entry => normalizeAddress(entry[2]) === address);
+
+    if (!existing) {
+        addressCache.push([netIdx, appIdx, Number.parseInt(address, 16)]);
+    } else {
+        if (overwriteMetadata || (existing[0] === 0 && existing[1] === 0)) {
+            existing[0] = netIdx;
+            existing[1] = appIdx;
+        }
+        existing[2] = Number.parseInt(address, 16);
+    }
+
+    if (!deviceStates.has(address)) {
+        deviceStates.set(address, "off");
+    }
+}
+
+function chunkArray(items, size) {
+    const chunks = [];
+    for (let index = 0; index < items.length; index += size) {
+        chunks.push(items.slice(index, index + size));
+    }
+    return chunks;
 }
 
 async function sendMessage(message) {
@@ -127,6 +197,13 @@ while (true) {
                 if (item.message.appId === "Provisioning") {
                     getProvisionedDevice(item.message.data);
                 }
+                if (item.message.appId === "OnOff_status") {
+                    const statusUpdate = parseOnOffStatusMessage(item.message.data);
+                    if (statusUpdate) {
+                        setDeviceStatus(statusUpdate.address, statusUpdate.status);
+                        renderProvisionedList();
+                    }
+                }
                 if (item.message.appId === "cdb") {
                     saveCdb(item.message.data);
                 }
@@ -177,7 +254,7 @@ async function getProvisionedDevice(msg) {
     console.log(`Parsed provisioning data - app_idx: ${app_idx}, net_idx: ${net_idx}, startAddr: 0x${startAddr.toString(16)}, endAddr: 0x${endAddr.toString(16)}`);
     console.log("Current addressCache before update:", addressCache);
     for (let addr = startAddr; addr <= endAddr; addr++) {
-        addressCache.push([net_idx, app_idx, addr]);
+        addProvisionedEntity(net_idx, app_idx, addr);
     }
     console.log("Updated addressCache after adding new devices:", addressCache);
 
@@ -191,7 +268,11 @@ async function getProvisionedDevice(msg) {
 
 function renderProvisionedList() {
     const list = document.getElementById("provisionedList");
-    const cache = addressCache.slice(1);
+    const cache = addressCache.slice(1).map(entry => ({
+        netIdx: entry[0],
+        appIdx: entry[1],
+        address: normalizeAddress(entry[2]),
+    }));
 
     if (cache.length === 0) {
         list.innerHTML = '<div class="no-devices">No provisioned devices yet.</div>';
@@ -199,16 +280,26 @@ function renderProvisionedList() {
     }
 
     list.innerHTML = "";
+    list.className = "element-grid";
 
-    cache.forEach((addr, i) => {
-        const el = document.createElement("div");
-        el.className = "device-item";
-        el.innerHTML =
-            `<span><span class="device-index">#${i + 1}</span>` +
-            `<span class="device-uuid">0x${addr[2].toString(16)} (net_idx: ${addr[0]}, app_idx: ${addr[1]})</span></span>` +
-            `<button class="btn-device" onclick="toggle_light(${addr[0]}, ${addr[1]}, ${addr[2]}, true)">On</button>` +
-            `<button class="btn-device" onclick="toggle_light(${addr[0]}, ${addr[1]}, ${addr[2]}, false)">Off</button>`;
-        list.appendChild(el);
+    cache.forEach((device) => {
+        const status = getDeviceStatus(device.address);
+        const element = document.createElement("div");
+        element.className = "element-card";
+        element.innerHTML = `
+            <div class="element-header">
+                <span class="el-addr">${device.address}</span>
+                <span class="el-meta">${device.netIdx},${device.appIdx}</span>
+            </div>
+            <button
+                class="${status === "on" ? "btn-el-on" : "btn-el-off"}"
+                aria-pressed="${status === "on" ? "true" : "false"}"
+                onclick="toggleProvisionedLight(${device.netIdx}, ${device.appIdx}, '${device.address}', '${status}')"
+            >
+                ${status.toUpperCase()}
+            </button>
+        `;
+        list.appendChild(element);
     });
 }
 
@@ -275,10 +366,7 @@ async function saveCdb(data) {
         if (addr !== 0x0001) {
             for (let i = 0; i < node.elements; i++) {
                 const elemAddr = addr + i;
-                const already = addressCache.slice(1).some(e => e[2] === elemAddr);
-                if (!already) {
-                    addressCache.push([0, 0, elemAddr]);
-                }
+                addProvisionedEntity(0, 0, elemAddr, false);
             }
         }
         renderProvisionedList();
@@ -365,6 +453,11 @@ async function toggle_light(net_idx, app_idx, addr, on) {
     } else {
         await sendMessage(`light ${net_idx} ${app_idx} ${addr} 0`);
     }
+}
+
+async function toggleProvisionedLight(netIdx, appIdx, addr, currentStatus) {
+    const nextOn = currentStatus !== "on";
+    await toggle_light(netIdx, appIdx, Number.parseInt(addr, 16), nextOn);
 }
 
 async function loadLatestCdb() {
