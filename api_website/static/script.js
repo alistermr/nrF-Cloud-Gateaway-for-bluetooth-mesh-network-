@@ -79,6 +79,25 @@ function setDeviceStatus(addr, status) {
     deviceStates.set(getDeviceKey(addr), status.toLowerCase() === "on" ? "on" : "off");
 }
 
+function getAddressRange(entry) {
+    const startAddress = typeof entry[2] === "number"
+        ? entry[2]
+        : Number.parseInt(normalizeAddress(entry[2]), 16);
+    const elementCount = Number.parseInt(entry[3] ?? 1, 10) || 1;
+    return {
+        startAddress,
+        endAddress: startAddress + elementCount - 1,
+    };
+}
+
+function findProvisionedEntryByAddress(addr) {
+    const address = Number.parseInt(normalizeAddress(addr), 16);
+    return addressCache.slice(1).find(entry => {
+        const range = getAddressRange(entry);
+        return address >= range.startAddress && address <= range.endAddress;
+    }) || null;
+}
+
 function parseOnOffStatusMessage(message) {
     const match = String(message || "").match(/src=(0x[0-9a-fA-F]+)\s+status=(ON|OFF)\b/i);
     if (!match) return null;
@@ -89,22 +108,28 @@ function parseOnOffStatusMessage(message) {
     };
 }
 
-function addProvisionedEntity(netIdx, appIdx, addr, overwriteMetadata = true) {
+function addProvisionedEntity(netIdx, appIdx, addr, numElements = 1, overwriteMetadata = true) {
     const address = normalizeAddress(addr);
     const existing = addressCache.find(entry => normalizeAddress(entry[2]) === address);
 
     if (!existing) {
-        addressCache.push([netIdx, appIdx, Number.parseInt(address, 16)]);
+        addressCache.push([netIdx, appIdx, Number.parseInt(address, 16), Math.max(1, Number.parseInt(numElements, 10) || 1)]);
     } else {
         if (overwriteMetadata || (existing[0] === 0 && existing[1] === 0)) {
             existing[0] = netIdx;
             existing[1] = appIdx;
         }
         existing[2] = Number.parseInt(address, 16);
+        existing[3] = Math.max(1, Number.parseInt(numElements, 10) || existing[3] || 1);
     }
 
-    if (!deviceStates.has(address)) {
-        deviceStates.set(address, "off");
+    const elementCount = Math.max(1, Number.parseInt(numElements, 10) || 1);
+    const startAddress = Number.parseInt(address, 16);
+    for (let index = 0; index < elementCount; index++) {
+        const elementAddress = normalizeAddress(startAddress + index);
+        if (!deviceStates.has(elementAddress)) {
+            deviceStates.set(elementAddress, "off");
+        }
     }
 }
 
@@ -251,11 +276,10 @@ async function getProvisionedDevice(msg) {
     const net_idx = Number.parseInt(m[2], 10);
     let startAddr = Number.parseInt(m[3], 16);
     let endAddr = Number.parseInt(m[4], 16);
+    const numElements = endAddr - startAddr + 1;
     console.log(`Parsed provisioning data - app_idx: ${app_idx}, net_idx: ${net_idx}, startAddr: 0x${startAddr.toString(16)}, endAddr: 0x${endAddr.toString(16)}`);
     console.log("Current addressCache before update:", addressCache);
-    for (let addr = startAddr; addr <= endAddr; addr++) {
-        addProvisionedEntity(net_idx, app_idx, addr);
-    }
+    addProvisionedEntity(net_idx, app_idx, startAddr, numElements);
     console.log("Updated addressCache after adding new devices:", addressCache);
 
     setStatus(
@@ -272,6 +296,7 @@ function renderProvisionedList() {
         netIdx: entry[0],
         appIdx: entry[1],
         address: normalizeAddress(entry[2]),
+        numElements: Number.parseInt(entry[3] ?? 1, 10) || 1,
     }));
 
     if (cache.length === 0) {
@@ -280,24 +305,37 @@ function renderProvisionedList() {
     }
 
     list.innerHTML = "";
-    list.className = "element-grid";
+    list.className = "node-list";
 
     cache.forEach((device) => {
-        const status = getDeviceStatus(device.address);
+        const startAddress = Number.parseInt(device.address, 16);
         const element = document.createElement("div");
-        element.className = "element-card";
+        element.className = "node-card";
+
+        const buttons = [];
+        for (let elementIndex = 0; elementIndex < device.numElements; elementIndex++) {
+            const elementAddress = normalizeAddress(startAddress + elementIndex);
+            const status = getDeviceStatus(elementAddress);
+            buttons.push(`
+                <button
+                    class="element-button ${status === "on" ? "is-on" : "is-off"}"
+                    aria-pressed="${status === "on" ? "true" : "false"}"
+                    onclick="toggleProvisionedLight(${device.netIdx}, ${device.appIdx}, '${elementAddress}', '${status}')"
+                >
+                    <span class="element-button-address">${elementAddress}</span>
+                    <span class="element-button-state">${status.toUpperCase()}</span>
+                </button>
+            `);
+        }
+
         element.innerHTML = `
             <div class="element-header">
                 <span class="el-addr">${device.address}</span>
                 <span class="el-meta">${device.netIdx},${device.appIdx}</span>
             </div>
-            <button
-                class="${status === "on" ? "btn-el-on" : "btn-el-off"}"
-                aria-pressed="${status === "on" ? "true" : "false"}"
-                onclick="toggleProvisionedLight(${device.netIdx}, ${device.appIdx}, '${device.address}', '${status}')"
-            >
-                ${status.toUpperCase()}
-            </button>
+            <div class="element-grid">
+                ${buttons.join("")}
+            </div>
         `;
         list.appendChild(element);
     });
@@ -361,13 +399,9 @@ async function saveCdb(data) {
         const exists = cdbData.nodes.some(n => n.address === node.address);
         if (!exists) cdbData.nodes.push(node);
 
-        // Sync address into addressCache if not gateway (0x0001)
-        const addr = parseInt(node.address, 16);
-        if (addr !== 0x0001) {
-            for (let i = 0; i < node.elements; i++) {
-                const elemAddr = addr + i;
-                addProvisionedEntity(0, 0, elemAddr, false);
-            }
+        // Sync address into addressCache if not gateway
+        if (node.uuid !== "dddd0000000000000000000000000000") {
+            addProvisionedEntity(0, 0, node.address, node.elements, false);
         }
         renderProvisionedList();
 
@@ -392,13 +426,20 @@ async function replaceNode() {
             await sendMessage("No cdb Data");
             return;
         }
-        await sendMessage("replace netkey:" + cdbData.subnets.map(s => s.netKey).join(",") +
-        " appkey:" + cdbData.appKeys.map(k => k.appKey).join(","));
+        const largestAddress = Math.max(...cdbData.nodes.map(n => parseInt(n.address, 16) + (n.elements - 1)));
+        const nextAddress = largestAddress + 1;
+        await sendMessage("replace netkey:" + cdbData.subnets.map(s => s.netKey).join(",") + " address:" + nextAddress);
         await waitForAck("reProvisioned");
+        for (const appkey of cdbData.appKeys) {
+            await sendMessage(`appkey ${appkey.appIdx} ${appkey.appKey}`);
+        }
+        await sendMessage("");
+        console.log(cdbData);
         for (const node of cdbData.nodes) {
             if((node.address === "0x0001") || (node.uuid === "dddd0000000000000000000000000000")) continue; // skip gateway
-            await sendMessage(`node uuid:${node.uuid} devkey:${node.devKey}`);
-            await waitForAck(`node provisioned:${node.uuid}`);
+            console.log(node);
+            await sendMessage(`node uuid:${node.uuid} devkey:${node.devKey} address:${node.address} elements:${node.elements} `);
+            await waitForAck(`node`);
         }
 }
 

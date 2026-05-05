@@ -452,10 +452,26 @@ button:active { transform: scale(.97); }
     overflow-y: visible;
 }
 
+.node-list {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+}
+
 .element-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: .5rem;
+}
+
+.node-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .75rem;
+    display: flex;
+    flex-direction: column;
+    gap: .65rem;
 }
 
 .element-card {
@@ -488,39 +504,48 @@ button:active { transform: scale(.97); }
     color: var(--text-dim);
 }
 
-.btn-el-on {
+.element-button {
     width: 100%;
-    padding: .5rem;
-    background: var(--surface-2);
+    min-height: 3.3rem;
+    padding: .45rem .35rem;
+    border: none;
+    border-radius: var(--radius-sm);
     color: var(--text);
-    border: none;
-    border-radius: 0;
-    font-size: 1.2rem;
-    font-weight: 600;
     cursor: pointer;
-    transition: background .15s;
-    text-align: center;
-    line-height: 1;
+    transition: background .15s, transform .1s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .15rem;
 }
 
-.btn-el-on:hover { background: var(--border-hl); }
-
-.btn-el-off {
-    width: 100%;
-    padding: .5rem;
-    background: var(--red);
-    color: #fff;
-    border: none;
-    border-radius: 0;
-    font-size: 1.2rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background .15s;
-    text-align: center;
-    line-height: 1;
+.element-button:active {
+    transform: scale(.98);
 }
 
-.btn-el-off:hover { background: #dc2626; }
+.element-button.is-on {
+    background: rgba(34,197,94,.14);
+    box-shadow: inset 0 0 0 1px rgba(34,197,94,.28);
+}
+
+.element-button.is-off {
+    background: rgba(239,68,68,.14);
+    box-shadow: inset 0 0 0 1px rgba(239,68,68,.28);
+}
+
+.element-button-address {
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+.element-button-state {
+    font-family: var(--sans);
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+}
 
 /* ── Scrollbar styling ── */
 ::-webkit-scrollbar { width: 5px; }

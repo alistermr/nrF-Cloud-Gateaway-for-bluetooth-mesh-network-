@@ -14,7 +14,9 @@
 
 //kanskje
 #include <zephyr/bluetooth/mesh.h>
+#if defined(CONFIG_BT_MESH_SHELL)
 #include <zephyr/bluetooth/mesh/shell.h>
+#endif
 
 
 #define CMD_BUFFER_SIZE 128
@@ -41,19 +43,11 @@ static const char *commands[] = {
 static char *uuids_cur_scan[32];
 static int num_uuids_cur_scan = 0;
 
-#define MAX_NETKEYS 10
-#define MAX_APPKEYS_PER_NET 10
-
-typedef struct {
-    uint16_t net_idx;
-    uint16_t app_indices[MAX_APPKEYS_PER_NET];
-    uint8_t  app_key_count;
-} mesh_network_t;
-
-static mesh_network_t mesh_topology[MAX_NETKEYS];
-static uint8_t net_key_count = 0;
-static uint16_t cur_app_idx = 0; // Start AppKey index
-static int prov_count = 0x0010;
+const uint16_t net_idx = 0x0000;
+static uint16_t cur_app_idx = 0;
+static uint16_t app_idx_list[10] = { [0 ... 9] = 0xFFFF}; //keep track of created app_idx for checking if app_idx exist when provisioning new devices, max 10 appkeys for simplicity
+static int prov_count = 0x0001;
+static uint16_t local_addr;
 
 
 static void run_command(const char *command);
@@ -175,8 +169,6 @@ void uart30_send(const char *data, const char *subject)
     if (!uart_dev || !device_is_ready(uart_dev)) {
         return;
     }
-
-
     char json_buf[1024];
     snprintf(json_buf, sizeof(json_buf), "%s %s",subject, data);
     size_t json_len = strip_ansi_escapes(json_buf, strlen(json_buf), json_buf, sizeof(json_buf));
@@ -231,64 +223,52 @@ static void uart_isr(const struct device *dev, void *user_data)
     }
 }
 
-void add_appkey_to_net(uint16_t net_idx, uint16_t app_idx) {
-    // 1. Finn eksisterende NetKey eller opprett ny
-    int net_pos = -1;
-    for (int i = 0; i < net_key_count; i++) {
-        if (mesh_topology[i].net_idx == net_idx) {
-            net_pos = i;
+void add_appkey(uint16_t app_idx, char app_key[32]) {
+
+    enqueue_command("mesh target net 0");
+    enqueue_command("mesh target dst local");
+    char cmd[96];
+    if (app_key && app_key[0] != '\0') {
+        snprintf(cmd, sizeof(cmd), "mesh cdb app-key-add %u %u %s", net_idx, app_idx, app_key);
+    } else {
+        snprintf(cmd, sizeof(cmd), "mesh cdb app-key-add %u %u", net_idx, app_idx);
+    }
+    enqueue_command(cmd);
+    snprintf(cmd, sizeof(cmd), "mesh models cfg appkey add %u %u", net_idx, app_idx);
+    enqueue_command(cmd);
+    /* Bind local Generic OnOff Client (0x1001) to this AppKey */
+    //snprintf(cmd, sizeof(cmd), "mesh target net %u", net_idx);
+    //enqueue_command(cmd);
+    snprintf(cmd, sizeof(cmd), "mesh models cfg model app-bind 0x%04x %u 0x1001", local_addr, app_idx);
+    enqueue_command(cmd);
+    //add appkey to list of app_idx
+    for (int i = 0; i < ARRAY_SIZE(app_idx_list); i++) {
+        if (app_idx_list[i] == 0xFFFF) {
+            app_idx_list[i] = app_idx;
             break;
         }
     }
     
-    enqueue_command("mesh target dst local");
-    // Hvis NetKey ikke finnes, legg den til
-    if (net_pos == -1 && net_key_count < MAX_NETKEYS) {
-        net_pos = net_key_count;
-        mesh_topology[net_pos].net_idx = net_idx;
-        mesh_topology[net_pos].app_key_count = 0;
-        net_key_count++;
-        char cmd[64];
-        enqueue_command("mesh target net 0");
-        snprintf(cmd, sizeof(cmd), "mesh models cfg netkey add %u", net_idx);
-        enqueue_command(cmd);
-    }
-
-    // 2. Legg til AppKey under denne NetKey
-    if (net_pos != -1 && mesh_topology[net_pos].app_key_count < MAX_APPKEYS_PER_NET) {
-        mesh_topology[net_pos].app_indices[mesh_topology[net_pos].app_key_count++] = app_idx;
-        
-        // Nå kan du generere kommandoen dynamisk
-        char cmd[96];
-        snprintf(cmd, sizeof(cmd), "mesh cdb app-key-add %u %u", net_idx, app_idx);
-        enqueue_command(cmd);
-        snprintf(cmd, sizeof(cmd), "mesh models cfg appkey add %u %u", net_idx, app_idx);
-        enqueue_command(cmd);
-        /* Bind local Generic OnOff Client (0x1001) to this AppKey */
-        enqueue_command("mesh target dst local");
-        snprintf(cmd, sizeof(cmd), "mesh target net %u", net_idx);
-        enqueue_command(cmd);
-        snprintf(cmd, sizeof(cmd), "mesh models cfg model app-bind 0x0001 %u 0x1001", app_idx);
-        enqueue_command(cmd);
-        /* Subscribe local Generic OnOff Client to status publications. */
-        snprintf(cmd, sizeof(cmd), "mesh models cfg model sub-add 0x0001 0x%04x 0x1001", ONOFF_STATUS_GROUP_ADDR);
-        enqueue_command(cmd);
-    }
 }
 
 
 static void run_command(const char *command)
 {
     static bool scanning = false;
-    printk("Running command: %s\n", command);
+    printk("received command: %s\n", command);
     if (strcmp(command, "init") == 0) {
         printk("Initializing device...\n");
         enqueue_command("mesh init");
         enqueue_command("mesh cdb create");
-        mesh_topology[net_key_count].net_idx = 0;
-        mesh_topology[net_key_count].app_key_count = 0;
-        net_key_count++;
+        app_idx_list[0] = 0;
         enqueue_command("mesh prov local 0 0x0001");
+        local_addr = 0x0001;
+        prov_count += 1;
+        add_appkey(0, NULL);
+        /* Subscribe local Generic OnOff Client to status publications. */
+        char cmd[CMD_BUFFER_SIZE];
+        snprintf(cmd, sizeof(cmd), "mesh models cfg model sub-add 0x%04x 0x%04x 0x1001", local_addr, ONOFF_STATUS_GROUP_ADDR);
+        enqueue_command(cmd);
         bt_mesh_shell_prov.node_added = uart_node_added_cb;
         const char *response = "initialization complete";
         uart30_send(response, "init_complete");
@@ -309,29 +289,24 @@ static void run_command(const char *command)
     } else if (strncmp(command, "prov", strlen("prov")) == 0) {
         unsigned int net_idx = 0U, app_idx = 0U;
         char uuid[33];
-        if (sscanf(command, "prov %s %u %u", uuid, &net_idx, &app_idx) != 3) {
+        if (sscanf(command, "prov %32s %u %u", uuid, &net_idx, &app_idx) != 3) {
             printk("wrong formating prov, Usage: prov <uuid> <net_idx> <app_idx>\n");
             char response[128];
             snprintf(response, sizeof(response), "wrong formating prov, Usage: prov <uuid> <net_idx> <app_idx>");
             uart30_send(response, "Error");
             return;
         }
-        //check if net_idx and app_idx exist
+        //check if app_idx exist
         bool app_idx_exists = false;
-        for (int i = 0; i < net_key_count; i++) {
-            if (mesh_topology[i].net_idx == net_idx) {
-                for (int j = 0; j < mesh_topology[i].app_key_count; j++) {
-                    if (mesh_topology[i].app_indices[j] == app_idx) {
-                        app_idx_exists = true;
-                        break;
-                    }
-                }
+        for (int i = 0; i < ARRAY_SIZE(app_idx_list); i++) {
+            if (app_idx_list[i] == app_idx) {
+                app_idx_exists = true;
                 break;
             }
         }
         if (!app_idx_exists) {
-            printk("AppKey index %u does not exist under NetKey index %u, creating new", app_idx, net_idx);
-            add_appkey_to_net(net_idx, app_idx);
+            printk("AppKey index %u does not exist, creating new", app_idx);
+            add_appkey(app_idx, NULL);
         }
         cur_app_idx = app_idx;
         char cmd[CMD_BUFFER_SIZE];
@@ -366,37 +341,58 @@ static void run_command(const char *command)
     }else if (strncmp(command, "cdb", strlen("cdb")) == 0) {
         enqueue_command("mesh cdb show");
     }else if (strncmp(command, "replace", strlen("replace")) == 0) {
-        char netkey[33] = {0}, appkey[33] = {0};
-        if (sscanf(command, "replace netkey:%32s appkey:%32s", netkey, appkey) != 2) {
-            printk("wrong formating replace command, Usage: replace netkey:<key> appkey:<key>\n");
+        char netkey[33] = {0};
+        if (sscanf(command, "replace netkey:%32s address:%hu", netkey, &local_addr) != 2) {
+            printk("wrong formating replace command, Usage: replace netkey:<key> address:<addr>\n");
             char response[128];
-            snprintf(response, sizeof(response), "wrong formating replace command, Usage: replace netkey:<key> appkey:<key>");
+            snprintf(response, sizeof(response), "wrong formating replace command, Usage: replace netkey:<key> address:<addr>");
             uart30_send(response, "Error");
             return;
         }
+        prov_count = local_addr + 1;
         char cmd[100];
         enqueue_command("mesh init");
         snprintf(cmd, sizeof(cmd), "mesh cdb create %s", netkey);
         enqueue_command(cmd);
-        snprintf(cmd, sizeof(cmd), "mesh cdb app-key-add 0 0 %s", appkey);
+        snprintf(cmd, sizeof(cmd), "mesh prov local %u 0x%04x", net_idx, local_addr);
         enqueue_command(cmd);
-        enqueue_command("mesh prov local 0 0x0002");
-        enqueue_command("mesh target net 0");
-        enqueue_command("mesh models cfg appkey add 0 0");
-        char response[128];
+
+        bt_mesh_shell_prov.node_added = uart_node_added_cb;
+
+        
+        // Subscribe local Generic OnOff Client to status publications
+        snprintf(cmd, sizeof(cmd), "mesh models cfg model sub-add 0x%04x 0x%04x 0x1001", local_addr, ONOFF_STATUS_GROUP_ADDR);
+        enqueue_command(cmd);
+
+
         uart30_send("reProvisioned", "reProvisioned");
+    }
+    else if (strncmp(command, "appkey", strlen("appkey")) == 0) {
+        uint16_t app_idx = 0;
+        char appkey[33];
+        if (sscanf(command, "appkey 0x%u %32s", &app_idx, appkey) != 2) {
+            printk("wrong formating appkey command, Usage: appkey <app_idx> <appkey>\n");
+            char response[128];
+            snprintf(response, sizeof(response), "wrong formating appkey command, Usage: appkey <app_idx> <appkey>");
+            uart30_send(response, "Error");
+            return;
+        }
+        add_appkey(app_idx, appkey);
+
     }
     else if(strncmp(command, "node", strlen("node")) == 0) {
         char uuid[33] = {0}, devkey[33] = {0};
-        if(sscanf(command, "node uuid:%32s devkey:%32s", uuid, devkey) != 2 ) {
-            printk("wrong formating node command, Usage: node uuid:<uuid> devkey:<devkey>\n");
+        uint16_t addr = 0;
+        uint8_t elements = 0;
+        if(sscanf(command, "node uuid:%32s devkey:%32s address:0x%hx elements:%hhu", uuid, devkey, &addr, &elements) != 4 ) {
+            printk("wrong formating node command, Usage: node uuid:<uuid> devkey:<devkey> address:<addr> elements:<elements>\n");
             char response[128];
-            snprintf(response, sizeof(response), "wrong formating node command, Usage: node uuid:<uuid> devkey:<devkey>");
+            snprintf(response, sizeof(response), "wrong formating node command, Usage: node uuid:<uuid> devkey:<devkey> address:<addr> elements:<elements>");
             uart30_send(response, "Error");
             return;
         }
         char cmd[100];
-        snprintf(cmd, sizeof(cmd), "mesh cdb node-add %32s 0x%04x 4 0 %32s", uuid, prov_count, devkey);
+        snprintf(cmd, sizeof(cmd), "mesh cdb node-add %32s 0x%04x %u %u %32s", uuid, addr, elements, net_idx, devkey);
         enqueue_command(cmd);
         char response[128];
         snprintf(response, sizeof(response), "node provisioned:%s", uuid);
