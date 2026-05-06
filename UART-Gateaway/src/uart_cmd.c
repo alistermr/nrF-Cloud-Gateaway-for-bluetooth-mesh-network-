@@ -367,13 +367,13 @@ static void run_command(const char *command)
 
         uart30_send("reProvisioned", "reProvisioned");
     }
-    else if (strncmp(command, "appkey", strlen("appkey")) == 0) {
+    else if (strncmp(command, "add appkey", strlen("add appkey")) == 0) {
         uint16_t app_idx = 0;
         char appkey[33];
-        if (sscanf(command, "appkey 0x%u %32s", &app_idx, appkey) != 2) {
-            printk("wrong formating appkey command, Usage: appkey <app_idx> <appkey>\n");
+        if (sscanf(command, "add appkey 0x%u %32s", &app_idx, appkey) != 2) {
+            printk("wrong formating appkey command, Usage: add appkey <app_idx> <appkey>\n");
             char response[128];
-            snprintf(response, sizeof(response), "wrong formating appkey command, Usage: appkey <app_idx> <appkey>");
+            snprintf(response, sizeof(response), "wrong formating appkey command, Usage: add appkey <app_idx> <appkey>");
             uart30_send(response, "Error");
             return;
         }

@@ -431,7 +431,7 @@ async function replaceNode() {
         await sendMessage("replace netkey:" + cdbData.subnets.map(s => s.netKey).join(",") + " address:" + nextAddress);
         await waitForAck("reProvisioned");
         for (const appkey of cdbData.appKeys) {
-            await sendMessage(`appkey ${appkey.appIdx} ${appkey.appKey}`);
+            await sendMessage(`add appkey ${appkey.appIdx} ${appkey.appKey}`);
         }
         await sendMessage("");
         console.log(cdbData);
