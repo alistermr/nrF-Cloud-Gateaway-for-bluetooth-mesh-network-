@@ -236,9 +236,6 @@ void add_appkey(uint16_t app_idx, char app_key[32]) {
     enqueue_command(cmd);
     snprintf(cmd, sizeof(cmd), "mesh models cfg appkey add %u %u", net_idx, app_idx);
     enqueue_command(cmd);
-    /* Bind local Generic OnOff Client (0x1001) to this AppKey */
-    //snprintf(cmd, sizeof(cmd), "mesh target net %u", net_idx);
-    //enqueue_command(cmd);
     snprintf(cmd, sizeof(cmd), "mesh models cfg model app-bind 0x%04x %u 0x1001", local_addr, app_idx);
     enqueue_command(cmd);
     //add appkey to list of app_idx
@@ -343,9 +340,9 @@ static void run_command(const char *command)
     }else if (strncmp(command, "replace", strlen("replace")) == 0) {
         char netkey[33] = {0};
         if (sscanf(command, "replace netkey:%32s address:%hu", netkey, &local_addr) != 2) {
-            printk("wrong formating replace command, Usage: replace netkey:<key> address:<addr>\n");
+            printk("wrong formating replace command, Usage: replace netkey:<netkey> address:<addr>\n");
             char response[128];
-            snprintf(response, sizeof(response), "wrong formating replace command, Usage: replace netkey:<key> address:<addr>");
+            snprintf(response, sizeof(response), "wrong formating replace command, Usage: replace netkey:<netkey> address:<addr>");
             uart30_send(response, "Error");
             return;
         }
