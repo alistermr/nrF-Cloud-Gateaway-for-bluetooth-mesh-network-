@@ -367,7 +367,7 @@ static void run_command(const char *command)
     else if (strncmp(command, "add appkey", strlen("add appkey")) == 0) {
         uint16_t app_idx = 0;
         char appkey[33];
-        if (sscanf(command, "add appkey 0x%u %32s", &app_idx, appkey) != 2) {
+        if (sscanf(command, "add appkey 0x%x %32s", &app_idx, appkey) != 2) {
             printk("wrong formating appkey command, Usage: add appkey <app_idx> <appkey>\n");
             char response[128];
             snprintf(response, sizeof(response), "wrong formating appkey command, Usage: add appkey <app_idx> <appkey>");

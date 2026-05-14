@@ -367,6 +367,28 @@ button:active { transform: scale(.97); }
     gap: .5rem;
 }
 
+.provision-footer {
+    display: flex;
+    align-items: flex-end;
+    gap: .75rem;
+    margin-top: .85rem;
+    padding: .85rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.provision-footer .provision-config {
+    margin-top: 0;
+    flex: 0 0 auto;
+}
+
+.provision-footer .btn-provision {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: .55rem 1.2rem;
+}
+
 .provision-field label {
     margin-bottom: .25rem;
 }
@@ -444,6 +466,46 @@ button:active { transform: scale(.97); }
     color: var(--text-dim);
     cursor: not-allowed;
     box-shadow: none;
+}
+
+/* ── Action buttons row ── */
+.action-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+}
+
+.action-item {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
+
+.action-item label {
+    margin-bottom: 0;
+}
+
+.btn-action {
+    flex: 1;
+    padding: .65rem 1.2rem;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hl) 100%);
+    color: #fff;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 2px 8px rgba(59,130,246,.25);
+    transition: all .2s ease;
+}
+
+.btn-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59,130,246,.35);
+}
+
+.btn-action:active {
+    transform: translateY(0) scale(.98);
 }
 
 /* ── Node cards (provisioned devices) ── */

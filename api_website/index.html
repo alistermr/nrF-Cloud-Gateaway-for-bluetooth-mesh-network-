@@ -32,17 +32,13 @@
       <div class="device-list" id="deviceList">
         <div class="no-devices">No unprovisioned devices found. Click Scan to start.</div>
       </div>
-      <div class="provision-config">
-        <div class="provision-field">
-          <label for="provNetIdx">Net IDX</label>
-          <input id="provNetIdx" type="number" min="0" step="1" value="0" />
+      <div class="provision-footer">
+        <div class="provision-config">
+          <div class="provision-field">
+            <label for="provAppIdx">App IDX</label>
+            <input id="provAppIdx" type="number" min="0" step="1" value="0" />
+          </div>
         </div>
-        <div class="provision-field">
-          <label for="provAppIdx">App IDX</label>
-          <input id="provAppIdx" type="number" min="0" step="1" value="0" />
-        </div>
-      </div>
-      <div class="btn-row">
         <button class="btn-provision" id="provisionBtn" disabled onclick="provisionSelected()">Provision Selected</button>
       </div>
     </div>
@@ -69,14 +65,15 @@
       <button class="btn-send" id="sendBtn" onclick="sendMessagebtn()">Send Message</button>
     </div>
 
-    <div class="replace">
-      <label for="replaceInput">Save Cdb data</label>
-      <button class="btn-send" id="replaceBtn" onclick="sendMessage('cdb')">Save</button>
-    </div>
-
-    <div class="replace">
-      <label for="replaceInput">Replace Node</label>
-      <button class="btn-send" id="replaceBtn" onclick="replaceNode()">Replace</button>
+    <div class="action-row">
+      <div class="action-item">
+        <label for="saveCdbBtn">Save CDB Data</label>
+        <button class="btn-action" id="saveCdbBtn" onclick="sendMessage('cdb')">Save</button>
+      </div>
+      <div class="action-item">
+        <label for="replaceNodeBtn">Replace Node</label>
+        <button class="btn-action" id="replaceNodeBtn" onclick="replaceNode()">Replace</button>
+      </div>
     </div>
 
 

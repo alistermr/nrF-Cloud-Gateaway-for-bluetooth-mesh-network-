@@ -446,7 +446,7 @@ async function replaceNode() {
 async function provisionSelected() {
     if (selectedDeviceIdx === null) return;
 
-    const net_idx = document.getElementById("provNetIdx").value;
+    const net_idx = "0";
     const app_idx = document.getElementById("provAppIdx").value;
 
     const uuid = nonProvCache[selectedDeviceIdx];
@@ -503,17 +503,40 @@ async function toggleProvisionedLight(netIdx, appIdx, addr, currentStatus) {
 
 async function loadLatestCdb() {
     try {
-        const res = await fetch(API + "/api/cdb/latest");
-        const data = await res.json();
-
         const cdbBox = document.getElementById("cdbOutput");
         if (!cdbBox) return;
 
-        if (data.cdb && data.cdb.trim() !== "") {
-            cdbBox.textContent = data.cdb;
-        } else {
+        if (cdbData.nodes.length === 0 && cdbData.subnets.length === 0 && cdbData.appKeys.length === 0) {
             cdbBox.textContent = "No CDB stored yet.";
+            return;
         }
+
+        let output = "";
+
+        if (cdbData.subnets.length > 0) {
+            output += "Subnets:\n";
+            cdbData.subnets.forEach(s => {
+                output += `  ${s.netIdx} ${s.netKey}\n`;
+            });
+            output += "\n";
+        }
+
+        if (cdbData.appKeys.length > 0) {
+            output += "App Keys:\n";
+            cdbData.appKeys.forEach(k => {
+                output += `  ${k.netIdx} ${k.appIdx} ${k.appKey}\n`;
+            });
+            output += "\n";
+        }
+
+        if (cdbData.nodes.length > 0) {
+            output += "Nodes:\n";
+            cdbData.nodes.forEach(n => {
+                output += `  ${n.address} ${n.elements} ${n.flags} ${n.uuid} ${n.devKey}\n`;
+            });
+        }
+
+        cdbBox.textContent = output.trim();
 
     } catch (err) {
         const cdbBox = document.getElementById("cdbOutput");
