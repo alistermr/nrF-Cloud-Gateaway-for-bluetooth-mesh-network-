@@ -452,7 +452,7 @@ async function provisionSelected() {
     const uuid = nonProvCache[selectedDeviceIdx];
     document.getElementById("provisionBtn").disabled = true;
     setStatus("pending", `Provisioning…`);
-    await sendMessage(`prov ${uuid} ${net_idx} ${app_idx}`);
+    await sendMessage(`provandconfig ${uuid} ${net_idx} ${app_idx}`);
 
     renderProvisionedList();
 

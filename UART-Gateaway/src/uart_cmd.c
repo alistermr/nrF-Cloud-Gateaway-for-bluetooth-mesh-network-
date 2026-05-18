@@ -34,7 +34,7 @@ K_MSGQ_DEFINE(rx_cmd_msgq, CMD_BUFFER_SIZE, RX_CMD_QUEUE_LEN, 4);
 static const char *commands[] = {
     "init", // format: init
     "scan", // format: scan
-    "prov", // format: prov <uuid> <net_idx> <app_idx>
+    "provandconfig", // format: provandconfig <uuid> <net_idx> <app_idx>
     "light", // format: light_on <net_idx> <app_idx> <dst_addr> <on/off>
     "cdb", // format: cdb, Function for getting cdb show
     NULL
@@ -283,13 +283,13 @@ static void run_command(const char *command)
             uart30_send(response, "response");
             bt_mesh_shell_prov.unprovisioned_beacon = NULL;
         }
-    } else if (strncmp(command, "prov", strlen("prov")) == 0) {
+    } else if (strncmp(command, "provandconfig", strlen("provandconfig")) == 0) {
         unsigned int net_idx = 0U, app_idx = 0U;
         char uuid[33];
-        if (sscanf(command, "prov %32s %u %u", uuid, &net_idx, &app_idx) != 3) {
-            printk("wrong formating prov, Usage: prov <uuid> <net_idx> <app_idx>\n");
+        if (sscanf(command, "provandconfig %32s %u %u", uuid, &net_idx, &app_idx) != 3) {
+            printk("wrong formating provandconfig, Usage: provandconfig <uuid> <net_idx> <app_idx>\n");
             char response[128];
-            snprintf(response, sizeof(response), "wrong formating prov, Usage: prov <uuid> <net_idx> <app_idx>");
+            snprintf(response, sizeof(response), "wrong formating provandconfig, Usage: provandconfig <uuid> <net_idx> <app_idx>");
             uart30_send(response, "Error");
             return;
         }
