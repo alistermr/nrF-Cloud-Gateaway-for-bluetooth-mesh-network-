@@ -414,7 +414,7 @@ static void rx_cmd_router_thread(void)
 K_THREAD_DEFINE(rx_router_tid, 2048, rx_cmd_router_thread, NULL, NULL, NULL, 5, 0, 0);
 
 
-static void cmd_executor_thread(void)
+static void shell_cmd_executor_thread(void)
 {
     const struct shell *sh = shell_backend_dummy_get_ptr();
     char local_cmd[CMD_BUFFER_SIZE];
@@ -441,7 +441,7 @@ static void cmd_executor_thread(void)
     }
 }
 
-K_THREAD_DEFINE(cmd_executor_tid, 4096, cmd_executor_thread, NULL, NULL, NULL, 5, 0, 0);
+K_THREAD_DEFINE(shell_cmd_executor_tid, 4096, shell_cmd_executor_thread, NULL, NULL, NULL, 5, 0, 0);
 
 int uart_cmd_init(void)
 {
