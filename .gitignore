@@ -4,3 +4,9 @@ cloud_nRF9151_uart/build/
 cloud_nRF9151_uart/.vscode/
 light/build/
 light/.vscode/
+Mesh_node/build/
+Mesh_node/.vscode/
+Cloud_website/build/
+Cloud_website/.vscode/
+nRF54L15_Gateway/build/
+nRF54L15_Gateway/.vscode/
