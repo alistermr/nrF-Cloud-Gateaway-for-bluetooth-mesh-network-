@@ -1,0 +1,7 @@
+default: UART-Gateaway
+build_dir: C:/ba/nrfGateaway/UART-Gateaway/build
+domains:
+  - name: UART-Gateaway
+    build_dir: C:/ba/nrfGateaway/UART-Gateaway/build/UART-Gateaway
+flash_order:
+  - UART-Gateaway

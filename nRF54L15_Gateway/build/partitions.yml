@@ -1,0 +1,130 @@
+app:
+  address: 0x48000
+  end_address: 0x163000
+  region: flash_primary
+  size: 0x11b000
+bootconf:
+  address: 0xffd080
+  end_address: 0xffd084
+  region: bootconf
+  size: 0x4
+nonsecure_storage:
+  address: 0x163000
+  end_address: 0x165000
+  orig_span: &id001
+  - settings_storage
+  region: flash_primary
+  size: 0x2000
+  span: *id001
+otp:
+  address: 0xffd500
+  end_address: 0xffd97c
+  region: otp
+  size: 0x47c
+settings_storage:
+  address: 0x163000
+  end_address: 0x165000
+  inside:
+  - nonsecure_storage
+  placement:
+    after:
+    - app
+    before:
+    - end
+  region: flash_primary
+  size: 0x2000
+sram_nonsecure:
+  address: 0x20013000
+  end_address: 0x2002f000
+  orig_span: &id002
+  - sram_primary
+  region: sram_primary
+  size: 0x1c000
+  span: *id002
+sram_primary:
+  address: 0x20013000
+  end_address: 0x2002f000
+  region: sram_primary
+  size: 0x1c000
+sram_secure:
+  address: 0x20000000
+  end_address: 0x20013000
+  orig_span: &id003
+  - tfm_sram
+  region: sram_primary
+  size: 0x13000
+  span: *id003
+tfm:
+  address: 0x0
+  end_address: 0x40000
+  placement:
+    before:
+    - app
+  region: flash_primary
+  size: 0x40000
+tfm_its:
+  address: 0x40000
+  end_address: 0x42000
+  inside:
+  - tfm_storage
+  placement:
+    before:
+    - tfm_otp_nv_counters
+  region: flash_primary
+  size: 0x2000
+tfm_nonsecure:
+  address: 0x48000
+  end_address: 0x163000
+  orig_span: &id004
+  - app
+  region: flash_primary
+  size: 0x11b000
+  span: *id004
+tfm_otp_nv_counters:
+  address: 0x42000
+  end_address: 0x44000
+  inside:
+  - tfm_storage
+  placement:
+    before:
+    - tfm_ps
+  region: flash_primary
+  size: 0x2000
+tfm_ps:
+  address: 0x44000
+  end_address: 0x48000
+  inside:
+  - tfm_storage
+  placement:
+    after:
+    - tfm_secure
+  region: flash_primary
+  size: 0x4000
+tfm_secure:
+  address: 0x0
+  end_address: 0x40000
+  orig_span: &id005
+  - tfm
+  region: flash_primary
+  size: 0x40000
+  span: *id005
+tfm_sram:
+  address: 0x20000000
+  end_address: 0x20013000
+  inside:
+  - sram_secure
+  placement:
+    after:
+    - start
+  region: sram_primary
+  size: 0x13000
+tfm_storage:
+  address: 0x40000
+  end_address: 0x48000
+  orig_span: &id006
+  - tfm_ps
+  - tfm_its
+  - tfm_otp_nv_counters
+  region: flash_primary
+  size: 0x8000
+  span: *id006

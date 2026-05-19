@@ -1,0 +1,7 @@
+default: light
+build_dir: C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build
+domains:
+  - name: light
+    build_dir: C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build/light
+flash_order:
+  - light

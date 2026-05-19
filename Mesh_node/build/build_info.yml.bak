@@ -1,0 +1,22 @@
+cmake:
+  board:
+    name: 'nrf54l15dk'
+    path:
+     - 'C:/ncs/v3.2.1/zephyr/boards/nordic/nrf54l15dk'
+    qualifiers: 'nrf54l15/cpuapp'
+    revision: ''
+  images:
+   - name: 'light'
+     source-dir: 'C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light'
+     type: 'MAIN'
+  kconfig:
+    files:
+     - 'C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build/_sysbuild/empty.conf'
+     - 'C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build/_sysbuild/empty.conf'
+    user-files:
+     - 'C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build/_sysbuild/empty.conf'
+version: '0.1.0'
+west:
+  command: 'C:\ncs\toolchains\66cdf9b75e\opt\bin\Scripts\west build --build-dir c:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build c:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light --pristine --board nrf54l15dk/nrf54l15/cpuapp -- -DCONFIG_DEBUG_THREAD_INFO=y'
+  topdir: 'c:\ncs\v3.2.1'
+  version: '1.4.0'

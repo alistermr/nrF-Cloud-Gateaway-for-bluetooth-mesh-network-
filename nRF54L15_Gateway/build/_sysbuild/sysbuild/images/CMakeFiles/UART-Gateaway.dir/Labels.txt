@@ -1,0 +1,13 @@
+# Target labels
+ UART-Gateaway
+# Source files and their labels
+C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/CMakeFiles/UART-Gateaway
+C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/CMakeFiles/UART-Gateaway.rule
+C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/CMakeFiles/UART-Gateaway-complete.rule
+C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-build.rule
+C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-configure.rule
+C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-download.rule
+C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-install.rule
+C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-mkdir.rule
+C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-patch.rule
+C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-update.rule
