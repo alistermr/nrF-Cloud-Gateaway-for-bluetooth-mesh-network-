@@ -1,0 +1,17 @@
+{
+  "toolchainPath": "c:\\ncs\\toolchains\\fd21892d0f",
+  "sdkPath": "c:\\ncs\\v3.2.1",
+  "board": "nrf54lm20dk/nrf54lm20a/cpuapp",
+  "boardDir": "c:\\ncs\\v3.2.1\\zephyr\\boards\\nordic\\nrf54lm20dk",
+  "boardDirs": [
+    "c:\\ncs\\v3.2.1\\zephyr\\boards\\nordic\\nrf54lm20dk"
+  ],
+  "optimizations": "none",
+  "cmakeArgs": [],
+  "confFiles": [],
+  "buildDirectory": "build_1",
+  "kconfigFragments": [],
+  "snippets": [],
+  "dtcOverlays": [],
+  "extraDtcOverlays": []
+}

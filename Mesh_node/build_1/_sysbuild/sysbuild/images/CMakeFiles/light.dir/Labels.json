@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/CMakeFiles/light"
+		},
+		{
+			"file" : "C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/CMakeFiles/light.rule"
+		},
+		{
+			"file" : "C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/CMakeFiles/light-complete.rule"
+		},
+		{
+			"file" : "C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-build.rule"
+		},
+		{
+			"file" : "C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-configure.rule"
+		},
+		{
+			"file" : "C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-download.rule"
+		},
+		{
+			"file" : "C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-install.rule"
+		},
+		{
+			"file" : "C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-mkdir.rule"
+		},
+		{
+			"file" : "C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-patch.rule"
+		},
+		{
+			"file" : "C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"light"
+		],
+		"name" : "light"
+	}
+}

@@ -1,0 +1,13 @@
+# Target labels
+ light
+# Source files and their labels
+C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/CMakeFiles/light
+C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/CMakeFiles/light.rule
+C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/CMakeFiles/light-complete.rule
+C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-build.rule
+C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-configure.rule
+C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-download.rule
+C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-install.rule
+C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-mkdir.rule
+C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-patch.rule
+C:/ncs/v3.2.1/nrf/samples/bluetooth/mesh/light/build_1/_sysbuild/sysbuild/images/light-prefix/src/light-stamp/light-update.rule

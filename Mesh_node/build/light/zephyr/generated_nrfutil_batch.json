@@ -1,0 +1,24 @@
+{
+  "nrfutil_device_version": "2.15.2",
+  "family": "NRF54L_FAMILY",
+  "operations": [
+    {
+      "core": "NRFDL_DEVICE_CORE_APPLICATION",
+      "operation": {
+        "chip_erase_mode": "ERASE_ALL",
+        "firmware": {
+          "file": "C:\\ncs\\v3.2.1\\nrf\\samples\\bluetooth\\mesh\\light\\build\\merged.hex"
+        },
+        "type": "program",
+        "verify": "VERIFY_READ"
+      }
+    },
+    {
+      "core": "NRFDL_DEVICE_CORE_APPLICATION",
+      "operation": {
+        "option": "RESET_PIN",
+        "type": "reset"
+      }
+    }
+  ]
+}

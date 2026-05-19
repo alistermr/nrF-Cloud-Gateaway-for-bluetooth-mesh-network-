@@ -1,0 +1,24 @@
+{
+  "nrfutil_device_version": "2.17.1",
+  "family": "NRF54L_FAMILY",
+  "operations": [
+    {
+      "core": "NRFDL_DEVICE_CORE_APPLICATION",
+      "operation": {
+        "chip_erase_mode": "ERASE_ALL",
+        "firmware": {
+          "file": "C:\\ba\\nrfGateaway\\UART-Gateaway\\build\\merged.hex"
+        },
+        "type": "program",
+        "verify": "VERIFY_READ"
+      }
+    },
+    {
+      "core": "NRFDL_DEVICE_CORE_APPLICATION",
+      "operation": {
+        "option": "RESET_PIN",
+        "type": "reset"
+      }
+    }
+  ]
+}

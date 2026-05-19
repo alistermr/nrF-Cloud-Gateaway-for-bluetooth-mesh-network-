@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/UART-Gateaway/modules/trusted-firmware-m/CMakeFiles/tfm"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/UART-Gateaway/modules/trusted-firmware-m/CMakeFiles/tfm.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/UART-Gateaway/modules/trusted-firmware-m/CMakeFiles/tfm-complete.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/UART-Gateaway/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-build.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/UART-Gateaway/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-configure.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/UART-Gateaway/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-download.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/UART-Gateaway/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-install.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/UART-Gateaway/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-mkdir.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/UART-Gateaway/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-patch.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/UART-Gateaway/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"tfm"
+		],
+		"name" : "tfm"
+	}
+}

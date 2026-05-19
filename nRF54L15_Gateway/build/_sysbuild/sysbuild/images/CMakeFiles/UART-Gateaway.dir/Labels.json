@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/CMakeFiles/UART-Gateaway"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/CMakeFiles/UART-Gateaway.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/CMakeFiles/UART-Gateaway-complete.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-build.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-configure.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-download.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-install.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-mkdir.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-patch.rule"
+		},
+		{
+			"file" : "C:/ba/nrfGateaway/UART-Gateaway/build/_sysbuild/sysbuild/images/UART-Gateaway-prefix/src/UART-Gateaway-stamp/UART-Gateaway-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"UART-Gateaway"
+		],
+		"name" : "UART-Gateaway"
+	}
+}
