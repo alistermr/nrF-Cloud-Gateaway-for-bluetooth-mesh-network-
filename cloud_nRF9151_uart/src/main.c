@@ -26,20 +26,22 @@
 #include "nrf_cloud_shadow.h"
 
 LOG_MODULE_REGISTER(nrf_cloud_mqtt_device_message,
-					CONFIG_NRF_CLOUD_MQTT_DEVICE_MESSAGE_SAMPLE_LOG_LEVEL);
+					CONFIG_NRF_CLOUD_MQTT_DEVICE_MESSAGE_SAMPLE_LOG_LEVEL);  // enable logging in this module with the log level set in prj.conf
 
 /* Button number to send BUTTON event device message */
 #define LTE_LED_NUM DK_LED1
 #define SEND_LED_NUM DK_LED2
 #define SEND_LED_NUM_4 DK_LED4
 
+// The UART instance
 #define UART_NODE DT_NODELABEL(uart2)
 static const struct device *uart_dev = DEVICE_DT_GET(UART_NODE);
+// Buffer and index for UART RX data.
 #define UART_RX_BUF_SIZE 1024
 static char uart_rx_buf[UART_RX_BUF_SIZE];
 static size_t uart_rx_idx;
-#define UART_RX_CLOUD_APPID "uart_rx"
-#define UART_RX_MSGQ_MAX_MSGS 8
+#define UART_RX_CLOUD_APPID "uart_rx" // appId to use for messages created from UART RX data
+#define UART_RX_MSGQ_MAX_MSGS 32 // Max number of messages to queue for sending to cloud when UART RX data is received. 
 K_MSGQ_DEFINE(uart_rx_msgq, UART_RX_BUF_SIZE, UART_RX_MSGQ_MAX_MSGS, 4);
 static struct k_work uart_rx_cloud_work;
 
@@ -63,13 +65,15 @@ static K_EVENT_DEFINE(connection_events);
 /* nRF Cloud device ID */
 static char device_id[NRF_CLOUD_CLIENT_ID_MAX_LEN + 1];
 
+// crate a timestamped message object with the given appid and message type.
 static int create_timestamped_device_message(struct nrf_cloud_obj *const msg,
 											 const char *const appid,
 											 const char *const msg_type);
 
+/* Send a string over UART */
 static int uart_send_string(const char *msg)
 {
-	if (!msg)
+	if (!msg) 
 	{
 		return -EINVAL;
 	}
@@ -79,16 +83,18 @@ static int uart_send_string(const char *msg)
 		return -ENODEV;
 	}
 
+	// Send the string character by character using uart_poll_out
 	for (size_t i = 0; msg[i] != '\0'; i++)
 	{
 		uart_poll_out(uart_dev, msg[i]);
 	}
 
-	uart_poll_out(uart_dev, '\n');
+	uart_poll_out(uart_dev, '\n'); // Add newline at the end to signify end of message
 
 	return 0;
 }
 
+/* Send UART RX data to the nRF Cloud */
 static int send_uart_rx_to_cloud(const char *uart_line)
 {
 	int err;
@@ -103,49 +109,58 @@ static int send_uart_rx_to_cloud(const char *uart_line)
 		return -EAGAIN;
 	}
 
+	/* This function extract the appId and message string from the UART RX line.
+	 * The expected format of the line is "<appId> <message>", where <appId> is a single word and <message> is the rest of the line after the first space.
+	 * For example: "uart Hello from UART!" will have appId "uart" and message "Hello from UART!".
+	*/
+
 	char appid[16];
 	const char *message_str;
-	sscanf(uart_line, "%15s", appid);
-	message_str = uart_line + strlen(appid) + 1;
+	sscanf(uart_line, "%15s", appid); // Extract the appId
+	message_str = uart_line + strlen(appid) + 1; // The message starts after the appId and a space
 
 
-	NRF_CLOUD_OBJ_JSON_DEFINE(msg_obj);
+	NRF_CLOUD_OBJ_JSON_DEFINE(msg_obj); // Create a JSON object to hold the message. 
 
 	err = create_timestamped_device_message(&msg_obj, appid,
-											NRF_CLOUD_JSON_MSG_TYPE_VAL_DATA);
+											NRF_CLOUD_JSON_MSG_TYPE_VAL_DATA); // Initialize the message object with a timestamp, appId, and messageType "data".
 	if (err)
 	{
 		return err;
 	}
 
-	err = nrf_cloud_obj_str_add(&msg_obj, NRF_CLOUD_JSON_DATA_KEY, message_str, false);
+	err = nrf_cloud_obj_str_add(&msg_obj, NRF_CLOUD_JSON_DATA_KEY, message_str, false); // Add the message string to the JSON object with key "data".
 	if (err)
 	{
-		nrf_cloud_obj_free(&msg_obj);
+		nrf_cloud_obj_free(&msg_obj); // Free the JSON object if we fail to add the message string.
 		return err;
 	}
 
+	/* Create the MQTT message */
 	struct nrf_cloud_tx_data mqtt_msg = {
 		.qos = MQTT_QOS_1_AT_LEAST_ONCE,
 		.topic_type = NRF_CLOUD_TOPIC_MESSAGE,
 		.obj = &msg_obj,
 	};
 
-	err = nrf_cloud_send(&mqtt_msg);
-	nrf_cloud_obj_free(&msg_obj);
-
+	err = nrf_cloud_send(&mqtt_msg); // send the message to nRF Cloud.
+	nrf_cloud_obj_free(&msg_obj); // Free the message object after sending.
 	return err;
 }
 
+/* Work handler for processing UART RX data and sending it to the cloud */
 static void uart_rx_cloud_work_handler(struct k_work *work)
 {
-	ARG_UNUSED(work);
+	ARG_UNUSED(work); // this handler doesn't use the work struct, but the API requires it to be defined with this signature.
 
-	char uart_line[UART_RX_BUF_SIZE];
+	char uart_line[UART_RX_BUF_SIZE]; // Buffer to hold each UART line retrieved from the message queue.
 
-	while (k_msgq_get(&uart_rx_msgq, uart_line, K_NO_WAIT) == 0)
+	/* Process each UART line in the message queue */
+	while (k_msgq_get(&uart_rx_msgq, uart_line, K_NO_WAIT) == 0) // Retrieve a UART line from the message queue. If the queue is empty, break out of the loop.
 	{
-		int err = send_uart_rx_to_cloud(uart_line);
+		int err = send_uart_rx_to_cloud(uart_line); // Send the UART line to the cloud.
+
+		/* Status logging */
 		if (err == -EAGAIN)
 		{
 			LOG_INF("Cloud not ready, dropping UART RX message");
@@ -156,15 +171,17 @@ static void uart_rx_cloud_work_handler(struct k_work *work)
 		}
 		else
 		{
-			LOG_INF("UART RX sendt til sky: %s", uart_line);
+			LOG_INF("UART RX sent to cloud: %s", uart_line);
 		}
 	}
 }
 
+/* UART callback function */
 static void uart_callback(const struct device *dev, void *user_data)
 {
-	ARG_UNUSED(user_data);
+	ARG_UNUSED(user_data); // This callback doesn't use the user_data, but the API requires it to be defined with this signature.
 
+	/* Update the UART interrupt status */
 	if (!uart_irq_update(dev))
 	{
 		return;
@@ -176,43 +193,55 @@ static void uart_callback(const struct device *dev, void *user_data)
 	}
 
 	uint8_t byte;
-	while (uart_fifo_read(dev, &byte, 1) == 1)
+	while (uart_fifo_read(dev, &byte, 1) == 1) // Read one byte at a time from the UART FIFO until it's empty.
 	{
-		if (byte == '\n')
+		if (byte == '\n') // If we encounter a newline character, we consider the UART line to be complete and ready to be sent to the cloud.
 		{
-			if (uart_rx_idx > 0)
+			if (uart_rx_idx > 0) // Only process the line if it has content.
 			{
-				char completed_line[UART_RX_BUF_SIZE];
+				char completed_line[UART_RX_BUF_SIZE]; // Buffer to hold the completed UART line. 
 
+				/* Null-terminate the received line */
 				uart_rx_buf[uart_rx_idx] = '\0';
-				memcpy(completed_line, uart_rx_buf, uart_rx_idx + 1);
+				/* Copy the completed line to a separate buffer to avoid issues with
+				 the main UART RX buffer being overwritten by new incoming data.*/
+				memcpy(completed_line, uart_rx_buf, uart_rx_idx + 1); 
 				LOG_INF("UART RX: %s", uart_rx_buf);
 
+				/* Add the completed line to the message queue */
 				if (k_msgq_put(&uart_rx_msgq, completed_line, K_NO_WAIT) == 0)
 				{
-					k_work_submit(&uart_rx_cloud_work);
-				}
+					/* Submit work to process the UART line and send it to the cloud. 
+					We submit work every time we receive a line, but the work handler will
+					process all lines in the queue.*/
+					k_work_submit(&uart_rx_cloud_work); 				}
 				else
 				{
-					LOG_WRN("UART RX queue full, dropping message");
+					LOG_WRN("UART RX queue full, dropping message"); // If the message queue is full, we drop the UART line and log a warning.
 				}
 
-				uart_rx_idx = 0;
+				uart_rx_idx = 0; // Reset the index to start receiving the next UART line. 
 			}
 			continue;
 		}
 
+		/* If we receive a normal character, we add it to the UART RX buffer until we 
+		encounter a newline. */
 		if (uart_rx_idx < (UART_RX_BUF_SIZE - 1))
 		{
 			uart_rx_buf[uart_rx_idx++] = (char)byte;
 		}
 		else
 		{
+			/*Buffer overflow, reset index to avoid overflow and start 
+			overwriting from the beginning of the buffer.*/
 			uart_rx_idx = 0;
 		}
 	}
 }
 
+/*This function extracts the value of the "data" field from 
+ a JSON string and copies it to the provided output buffer.*/
 static bool extract_json_data_field(const char *json, char *out, size_t out_len)
 {
 	const char *data_key;
@@ -225,13 +254,13 @@ static bool extract_json_data_field(const char *json, char *out, size_t out_len)
 		return false;
 	}
 
-	data_key = strstr(json, "\"data\":\"");
+	data_key = strstr(json, "\"data\":\""); // Look for the "data" field in the JSON string. 
 	if (!data_key)
 	{
 		return false;
 	}
 
-	value_start = data_key + strlen("\"data\":\"");
+	value_start = data_key + strlen("\"data\":\""); // The value starts immediately after the "data":" part.
 	value_end = strchr(value_start, '"');
 	if (!value_end)
 	{
@@ -244,12 +273,13 @@ static bool extract_json_data_field(const char *json, char *out, size_t out_len)
 		return false;
 	}
 
-	memcpy(out, value_start, value_len);
+	memcpy(out, value_start, value_len); // Copy the value of the "data" field to the output buffer.
 	out[value_len] = '\0';
 
 	return true;
 }
 
+/* Check if all required nRF Cloud credentials are available */
 static bool cred_check(struct nrf_cloud_credentials_status *const cs)
 {
 	int ret = 0;
@@ -282,6 +312,7 @@ static bool cred_check(struct nrf_cloud_credentials_status *const cs)
 	return (cs->ca && cs->ca_aws && cs->prv_key);
 }
 
+/* Wait for nRF Cloud credentials to be installed */
 static void await_credentials(void)
 {
 	struct nrf_cloud_credentials_status cs;
@@ -379,6 +410,7 @@ static int send_message(struct nrf_cloud_obj *msg)
 	return ret;
 }
 
+/* Send a "Hello, World!" message to the cloud */
 static int send_hello_world_msg(void)
 {
 	int err = 0;
@@ -499,6 +531,7 @@ static void cloud_event_handler(const struct nrf_cloud_evt *nrf_cloud_evt)
 {
 	int err;
 
+	/* Handle different types of events from the nRF Cloud library. */
 	switch (nrf_cloud_evt->type)
 	{
 	case NRF_CLOUD_EVT_RX_DATA_GENERAL:
@@ -506,8 +539,9 @@ static void cloud_event_handler(const struct nrf_cloud_evt *nrf_cloud_evt)
 		/* This event is used for “non-specific data from the cloud”. */
 		LOG_INF("RX (GENERAL) topic: %.*s",
 				(int)nrf_cloud_evt->topic.len,
-				(const char *)nrf_cloud_evt->topic.ptr);
+				(const char *)nrf_cloud_evt->topic.ptr); 
 
+		/* Process the received data. */
 		if (nrf_cloud_evt->data.ptr && nrf_cloud_evt->data.len)
 		{
 			LOG_INF("RX (GENERAL) payload (%u bytes): %.*s",
@@ -515,24 +549,27 @@ static void cloud_event_handler(const struct nrf_cloud_evt *nrf_cloud_evt)
 					(int)nrf_cloud_evt->data.len,
 					(const char *)nrf_cloud_evt->data.ptr);
 
+			/* Extract the command from the received data. */
 			char cmd_buf[512];
 			size_t copy_len = MIN((size_t)nrf_cloud_evt->data.len,
 								  sizeof(cmd_buf) - 1);
 
+			/* Copy the received data to the command buffer. */
 			memcpy(cmd_buf, nrf_cloud_evt->data.ptr, copy_len);
 			cmd_buf[copy_len] = '\0';
 
+			/* Check if the command is for UART*/
 			if (strstr(cmd_buf, "\"appId\":\"uart\""))
 			{
 				char uart_data[512];
-
+				/* Extract the UART data from the command buffer. */
 				if (!extract_json_data_field(cmd_buf, uart_data, sizeof(uart_data)))
 				{
 					LOG_WRN("UART command mangler gyldig data-felt");
 				}
 				else
 				{
-					err = uart_send_string(uart_data);
+					err = uart_send_string(uart_data); // Send the extracted UART data over UART.
 					if (err)
 					{
 						LOG_ERR("UART send failed: %d", err);
@@ -550,6 +587,7 @@ static void cloud_event_handler(const struct nrf_cloud_evt *nrf_cloud_evt)
 		}
 		break;
 	}
+	/* Other cases for different cloud events */
 	case NRF_CLOUD_EVT_TRANSPORT_CONNECTED:
 		LOG_DBG("NRF_CLOUD_EVT_TRANSPORT_CONNECTED");
 		shadow_config_cloud_connected();
@@ -635,22 +673,24 @@ static int setup(void)
 
 	print_reset_reason();
 
-	err = dk_leds_init();
+	err = dk_leds_init(); // Initialize the LEDs on the development kit.
 	if (err)
 	{
 		LOG_ERR("LEDs init failed (err %d)\n", err);
 		return 0;
 	}
 
-	err = device_is_ready(uart_dev);
+	err = device_is_ready(uart_dev); // Check if the UART device is ready.
 	if (!err)
 	{
 		LOG_ERR("UART device not ready");
 		return -ENODEV;
 	}
 
-	k_work_init(&uart_rx_cloud_work, uart_rx_cloud_work_handler);
+	/* Initialize the work item for processing UART RX data and sending it to the cloud.*/
+	k_work_init(&uart_rx_cloud_work, uart_rx_cloud_work_handler); 
 
+	/* Set the UART callback function. */
 	err = uart_irq_callback_user_data_set(uart_dev, uart_callback, NULL);
 	if (err)
 	{
@@ -658,10 +698,10 @@ static int setup(void)
 		return err;
 	}
 
-	uart_irq_rx_enable(uart_dev);
+	uart_irq_rx_enable(uart_dev); // Enable UART RX interrupts to start receiving data.
 
 	/* Set the LEDs off after all modules are ready */
-	err = dk_set_leds(0);
+	err = dk_set_leds(0); // Turn off all LEDs.
 	if (err)
 	{
 		LOG_ERR("Failed to set LEDs off");
@@ -700,6 +740,7 @@ static int setup(void)
 		.event_handler = cloud_event_handler,
 		.application_version = APP_VERSION_STRING};
 
+	/* Initialize the nRF Cloud library. */
 	err = nrf_cloud_init(&params);
 	if (err)
 	{
@@ -707,9 +748,12 @@ static int setup(void)
 		return err;
 	}
 
+	/* Connect to nRF Cloud. */
 	LOG_INF("Connecting to nRF Cloud...");
-	err = nrf_cloud_connect();
-	k_event_wait(&connection_events, CLOUD_READY, false, K_FOREVER);
+	err = nrf_cloud_connect(); 
+	/* Wait until we receive the event that indicates the connection to nRF Cloud is 
+	ready before proceeding.*/
+	k_event_wait(&connection_events, CLOUD_READY, false, K_FOREVER); 
 	/* If we were already connected, treat as a successful connection, but do nothing. */
 	if (err == NRF_CLOUD_CONNECT_RES_ERR_ALREADY_CONNECTED)
 	{
